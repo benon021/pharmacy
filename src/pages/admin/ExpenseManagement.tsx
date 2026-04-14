@@ -49,8 +49,9 @@ export default function ExpenseManagement() {
     description: ""
   });
 
-  const fetchExpenses = () => {
-    setExpenses(localDb.expenses.getAll().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+  const fetchExpenses = async () => {
+    const data = await localDb.expenses.getAll();
+    setExpenses(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
   };
 
   useEffect(() => {
@@ -66,7 +67,7 @@ export default function ExpenseManagement() {
     // Mimic DB delay
     await new Promise(r => setTimeout(r, 600));
 
-    const { error } = localDb.expenses.create({
+    const { error } = await localDb.expenses.create({
       ...form,
       amount: Number(form.amount)
     });
@@ -82,8 +83,8 @@ export default function ExpenseManagement() {
     setSaving(false);
   };
 
-  const deleteExpense = (id: string) => {
-    localDb.expenses.delete(id);
+  const deleteExpense = async (id: string) => {
+    await localDb.expenses.delete(id);
     toast.info("Expense record removed");
     fetchExpenses();
   };

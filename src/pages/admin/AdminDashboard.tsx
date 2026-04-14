@@ -33,15 +33,15 @@ export default function AdminDashboard() {
   const [expiringDrugs, setExpiringDrugs] = useState<Drug[]>([]);
 
   useEffect(() => {
-    const fetchStats = () => {
+    const fetchStats = async () => {
       const today = new Date().toISOString().split("T")[0];
-      const drugs = localDb.drugs.getAll();
-      const sales = localDb.sales.getAll();
-      const users = localDb.auth.getAll();
-      const expenses = localDb.expenses.getAll();
+      const drugs = await localDb.drugs.getAll();
+      const sales = await localDb.sales.getAll();
+      const users = await localDb.auth.getAll();
+      const expenses = await localDb.expenses.getAll();
       
       const todaySales = sales.filter(s => s.created_at.startsWith(today));
-      const lowStock = drugs.filter(d => d.is_active && d.stock <= d.low_stock_threshold);
+      const lowStock = drugs.filter(d => d.is_active && d.stock <= (d.reorder_level || 10));
       const expiring = drugs.filter(d => {
         const days = getDaysUntilExpiry(d.expiry_date);
         return d.is_active && days !== null && days <= 90;
@@ -68,7 +68,8 @@ export default function AdminDashboard() {
         return da - db;
       }).slice(0, 5));
 
-      setRecentSales(localDb.sales.getRecent(5));
+      const recent = await localDb.sales.getRecent(5);
+      setRecentSales(recent);
 
       const last7 = Array.from({ length: 7 }, (_, i) => {
         const d = new Date();
@@ -84,7 +85,7 @@ export default function AdminDashboard() {
       setChartData(chartD);
 
       setInventoryChart([
-        { name: 'Healthy', value: drugs.filter(d => d.stock > (d.low_stock_threshold || 10)).length },
+        { name: 'Healthy', value: drugs.filter(d => d.stock > (d.reorder_level || 10)).length },
         { name: 'Low', value: lowStock.length },
         { name: 'Expired', value: expired.length },
       ]);

@@ -101,8 +101,9 @@ export default function DrugCatalog() {
   const [intelData, setIntelData] = useState<any>(null);
   const [intelTab, setIntelTab] = useState<"intelligence" | "restock" | "edit" | "audit">("intelligence");
 
-  const fetchDrugs = () => {
-    setDrugs(localDb.drugs.getAll());
+  const fetchDrugs = async () => {
+    const data = await localDb.drugs.getAll();
+    setDrugs(data);
   };
 
   useEffect(() => {
@@ -150,7 +151,7 @@ export default function DrugCatalog() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const bstr = evt.target?.result;
         const wb = XLSX.read(bstr, { type: 'binary' });
@@ -159,9 +160,9 @@ export default function DrugCatalog() {
 
         let importedCount = 0;
         let updatedCount = 0;
-        const currentDrugs = localDb.drugs.getAll();
+        const currentDrugs = await localDb.drugs.getAll();
 
-        data.forEach((row: any) => {
+        for (const row of (data as any[])) {
           const drugData: Omit<Drug, "id" | "created_at"> = {
             name: row.Name || row.name,
             generic_name: row["Generic Name"] || row.generic_name || null,
@@ -185,22 +186,23 @@ export default function DrugCatalog() {
             barcode: row.Barcode || row.barcode || null,
             strength: row.Strength || row.strength || null,
             active_ingredients: row.Composition || row.active_ingredients || null,
+            description: row.Description || row.description || null,
           };
 
-          if (!drugData.name) return;
+          if (!drugData.name) continue;
 
           const existing = currentDrugs.find(d => d.name.toLowerCase() === drugData.name.toLowerCase());
           if (existing) {
-            localDb.drugs.update(existing.id, drugData);
+            await localDb.drugs.update(existing.id, drugData);
             updatedCount++;
           } else {
-            localDb.drugs.insert(drugData);
+            await localDb.drugs.insert(drugData);
             importedCount++;
           }
-        });
+        }
 
         toast.success(`Import complete: ${importedCount} new items, ${updatedCount} updated.`);
-        fetchDrugs();
+        await fetchDrugs();
       } catch (err) {
         toast.error("Failed to parse Excel file.");
       }
@@ -280,18 +282,18 @@ export default function DrugCatalog() {
     };
 
     if (editingDrug) {
-      const { error } = localDb.drugs.update(editingDrug.id, payload);
+      const { error } = await localDb.drugs.update(editingDrug.id, payload);
       if (error) toast.error(error.message);
       else toast.success("Forensic record updated successfully");
     } else {
-      const { error } = localDb.drugs.insert(payload);
+      const { error } = await localDb.drugs.insert(payload);
       if (error) toast.error(error.message);
       else toast.success("New product registered in inventory");
     }
 
     setSaving(false);
     setDialogOpen(false);
-    fetchDrugs();
+    await fetchDrugs();
   };
 
   return (

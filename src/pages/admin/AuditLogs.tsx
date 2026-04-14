@@ -24,31 +24,33 @@ export default function AuditLogs() {
   const [moduleDistribution, setModuleDistribution] = useState<any[]>([]);
 
   useEffect(() => {
-    const allLogs = localDb.auditLogs.getAll();
-    setLogs(allLogs);
+    const fetchAudits = async () => {
+        const allLogs = await localDb.auditLogs.getAll();
+        setLogs(allLogs);
 
-    // 1. Activity Frequency (Last 7 Days)
-    const freqMap: Record<string, number> = {};
-    for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const day = d.toLocaleDateString('en-US', { weekday: 'short' });
-        freqMap[day] = 0;
-    }
+        // 1. Activity Frequency (Last 7 Days)
+        const freqMap: Record<string, number> = {};
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const day = d.toLocaleDateString('en-US', { weekday: 'short' });
+            freqMap[day] = 0;
+        }
 
-    allLogs.forEach(l => {
-        const day = new Date(l.created_at).toLocaleDateString('en-US', { weekday: 'short' });
-        if (freqMap[day] !== undefined) freqMap[day]++;
-    });
-    setFrequencyData(Object.entries(freqMap).map(([name, value]) => ({ name, value })));
+        allLogs.forEach(l => {
+            const day = new Date(l.created_at).toLocaleDateString('en-US', { weekday: 'short' });
+            if (freqMap[day] !== undefined) freqMap[day]++;
+        });
+        setFrequencyData(Object.entries(freqMap).map(([name, value]) => ({ name, value })));
 
-    // 2. Module Distribution
-    const modMap: Record<string, number> = {};
-    allLogs.forEach(l => {
-        modMap[l.module] = (modMap[l.module] || 0) + 1;
-    });
-    setModuleDistribution(Object.entries(modMap).map(([name, value]) => ({ name, value })));
-
+        // 2. Module Distribution
+        const modMap: Record<string, number> = {};
+        allLogs.forEach(l => {
+            modMap[l.module] = (modMap[l.module] || 0) + 1;
+        });
+        setModuleDistribution(Object.entries(modMap).map(([name, value]) => ({ name, value })));
+    };
+    fetchAudits();
   }, []);
 
   const filteredLogs = (logs || []).filter(log => {

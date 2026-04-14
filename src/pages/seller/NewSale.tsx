@@ -105,8 +105,9 @@ export default function NewSale() {
     return new Date(expiryDate) < new Date();
   };
 
-  const refreshDrugs = () => {
-    setDrugs(localDb.drugs.getAll().filter(d => d.is_active));
+  const refreshDrugs = async () => {
+    const data = await localDb.drugs.getAll();
+    setDrugs(data.filter(d => d.is_active));
   };
 
   useEffect(() => {
@@ -242,7 +243,7 @@ export default function NewSale() {
     // Mandatory sync simulation for visual confirmation
     await new Promise(r => setTimeout(r, 1200));
 
-    const { data: sale, error } = localDb.sales.create({
+    const { data: sale, error } = await localDb.sales.create({
       seller_id: user.id,
       total_amount: finalTotal,
       tax_amount: taxAmount,
@@ -295,7 +296,7 @@ export default function NewSale() {
       setMpesaPhone("");
       setMpesaStep("idle");
       setPrescriptionUploaded(false);
-      refreshDrugs();
+      await refreshDrugs();
     }
     setSaving(false);
     setSyncing(false);

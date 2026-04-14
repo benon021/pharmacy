@@ -88,20 +88,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const navigation = role === "admin" ? adminNavigation : sellerNavigation;
 
-  const fetchNotifs = () => {
-    setNotifications(localDb.notifications.getAll());
+  const fetchNotifs = async () => {
+    const data = await localDb.notifications.getAll();
+    setNotifications(data);
   };
 
-  const checkSystem = () => {
-    const drugs = localDb.drugs.getAll();
-    const unread = localDb.notifications.getUnread();
+  const checkSystem = async () => {
+    const drugs = await localDb.drugs.getAll();
+    const unread = await localDb.notifications.getUnread();
     
-    drugs.forEach(d => {
+    for (const d of drugs) {
       // Low Stock
-      if (d.stock <= d.low_stock_threshold) {
+      if (d.stock <= (d.reorder_level || 10)) {
         const title = `Low Stock: ${d.name}`;
         if (!unread.find(n => n.title === title)) {
-          localDb.notifications.create({
+          await localDb.notifications.create({
             title,
             message: `${d.name} is down to ${d.stock} ${d.unit}. Consider restocking.`,
             type: "low_stock"
@@ -115,7 +116,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         if (daysLeft > 0 && daysLeft < 30) {
           const title = `Expiry Warning: ${d.name}`;
           if (!unread.find(n => n.title === title)) {
-            localDb.notifications.create({
+            await localDb.notifications.create({
               title,
               message: `${d.name} expires in ${daysLeft} days (${d.expiry_date}).`,
               type: "expiry"
@@ -123,9 +124,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           }
         }
       }
-    });
+    }
 
-    fetchNotifs();
+    await fetchNotifs();
   };
 
   useEffect(() => {
@@ -152,9 +153,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     localStorage.setItem("sidebar_collapsed", String(isCollapsed));
   }, [isCollapsed]);
 
-  const markRead = () => {
-    localDb.notifications.markAllRead();
-    fetchNotifs();
+  const markRead = async () => {
+    await localDb.notifications.markAllRead();
+    await fetchNotifs();
   };
 
   const handleSignOut = async () => {

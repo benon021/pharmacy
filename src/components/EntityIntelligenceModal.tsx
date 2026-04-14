@@ -37,6 +37,10 @@ export default function EntityIntelligenceModal({ open, onClose, type, data, ini
   const [isUpdating, setIsUpdating] = useState(false);
   const [editingData, setEditingData] = useState<any>(null);
 
+  const [sellerSales, setSellerSales] = useState<any[]>([]);
+  const [drugs, setDrugs] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+
   // Sync tab with initialTab when opening
   useEffect(() => {
     if (open && initialTab) setActiveTab(initialTab);
@@ -45,7 +49,24 @@ export default function EntityIntelligenceModal({ open, onClose, type, data, ini
   // Initialize editing data when modal opens/data changes
   useEffect(() => {
     if (data) setEditingData({ ...data });
-  }, [data, open]);
+    
+    const fetchAncillaryData = async () => {
+      if (!data) return;
+      if (type === "seller") {
+        const [salesData, drugsData] = await Promise.all([
+          localDb.sales.getDetailed(),
+          localDb.drugs.getAll()
+        ]);
+        setSellerSales(salesData.filter(s => s.seller_id === data.id));
+        setDrugs(drugsData);
+      }
+      if (activeTab === "audit") {
+        const logs = await localDb.auditLogs.getAll();
+        setAuditLogs(logs.filter(l => l.user_id === data.id || l.user_name === (data.full_name || data.name)));
+      }
+    };
+    fetchAncillaryData();
+  }, [data, open, type, activeTab]);
 
   if (!data || !editingData) return null;
 
@@ -74,7 +95,7 @@ export default function EntityIntelligenceModal({ open, onClose, type, data, ini
     await new Promise(r => setTimeout(r, 800));
 
     const newStock = (data.stock || 0) + Number(restockQty);
-    const { error } = localDb.drugs.update(data.id, { stock: newStock });
+    const { error } = await localDb.drugs.update(data.id, { stock: newStock });
 
     if (error) {
       toast.error(error.message);
@@ -100,7 +121,7 @@ export default function EntityIntelligenceModal({ open, onClose, type, data, ini
       reorder_level: Number(editingData.reorder_level)
     };
 
-    const { error } = localDb.drugs.update(data.id, updatedRecord);
+    const { error } = await localDb.drugs.update(data.id, updatedRecord);
 
     if (error) {
       toast.error(error.message);
@@ -409,8 +430,6 @@ export default function EntityIntelligenceModal({ open, onClose, type, data, ini
         );
 
       case "seller":
-        const sellerSales = localDb.sales.getDetailed().filter(s => s.seller_id === data.id);
-        const drugs = localDb.drugs.getAll();
         const costMap = drugs.reduce((acc, d) => ({ ...acc, [d.id]: d.cost_price || 0 }), {} as any);
 
         // Calculate Ledger
@@ -579,14 +598,10 @@ export default function EntityIntelligenceModal({ open, onClose, type, data, ini
               </div>
 
               <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                {localDb.auditLogs.getAll()
-                  .filter(l => l.user_id === data.id || l.user_name === data.full_name)
-                  .length === 0 ? (
+                {auditLogs.length === 0 ? (
                   <p className="text-center py-12 text-[10px] text-muted-foreground font-black uppercase tracking-widest italic opacity-30">No Forensic Trails Found</p>
                 ) : (
-                  localDb.auditLogs.getAll()
-                    .filter(l => l.user_id === data.id || l.user_name === data.full_name)
-                    .map((log, i) => (
+                  auditLogs.map((log, i) => (
                       <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5 group hover:border-amber-500/30 transition-all">
                         <div className="flex items-center gap-4">
                           <div className="h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center">
@@ -802,8 +817,14 @@ export default function EntityIntelligenceModal({ open, onClose, type, data, ini
         {renderContent()}
 
         <div className="mt-12">
-          <button
+          <button 
             onClick={onClose}
             className="w-full h-16 rounded-[2rem] bg-white/5 text-muted-foreground hover:text-white font-black uppercase tracking-[0.3em] text-[10px] border border-white/5 hover:bg-white/10 hover:scale-[1.01] transition-all italic"
           >
             Terminate Session
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

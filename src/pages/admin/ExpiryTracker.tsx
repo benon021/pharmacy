@@ -49,19 +49,22 @@ export default function ExpiryTracker() {
   const [filter, setFilter] = useState<HealthStatus | "all">("all");
 
   useEffect(() => {
-    const allDrugs = localDb.drugs.getAll().filter(d => d.is_active);
-    // Sort by expiry date ascending (earliest first) taking into account stock priority
-    allDrugs.sort((a, b) => {
-      const aStatus = getHealthStatus(a);
-      const bStatus = getHealthStatus(b);
-      if (aStatus === "expired" && bStatus !== "expired") return -1;
-      if (bStatus === "expired" && aStatus !== "expired") return 1;
-      
-      if (!a.expiry_date) return 1;
-      if (!b.expiry_date) return -1;
-      return new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime();
-    });
-    setDrugs(allDrugs);
+    const fetchDrugs = async () => {
+      const allDrugs = (await localDb.drugs.getAll()).filter(d => d.is_active);
+      // Sort by expiry date ascending (earliest first) taking into account stock priority
+      allDrugs.sort((a, b) => {
+        const aStatus = getHealthStatus(a);
+        const bStatus = getHealthStatus(b);
+        if (aStatus === "expired" && bStatus !== "expired") return -1;
+        if (bStatus === "expired" && aStatus !== "expired") return 1;
+        
+        if (!a.expiry_date) return 1;
+        if (!b.expiry_date) return -1;
+        return new Date(a.expiry_date).getTime() - new Date(b.expiry_date).getTime();
+      });
+      setDrugs(allDrugs);
+    };
+    fetchDrugs();
   }, []);
 
   const filteredDrugs = filter === "all"

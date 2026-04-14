@@ -18,9 +18,12 @@ export default function SalesHistory() {
 
   useEffect(() => {
     if (!user) return;
-    const allDetailed = localDb.sales.getDetailed();
-    const sellerSales = allDetailed.filter(s => s.seller_id === user.id);
-    setSales(sellerSales);
+    const fetchSales = async () => {
+      const allDetailed = await localDb.sales.getDetailed();
+      const sellerSales = allDetailed.filter(s => s.seller_id === user.id);
+      setSales(sellerSales);
+    };
+    fetchSales();
   }, [user]);
 
   const filteredSales = sales.filter(s => 

@@ -27,8 +27,8 @@ export default function SellerManagement() {
   const [intelOpen, setIntelOpen] = useState(false);
   const [intelData, setIntelData] = useState<any>(null);
 
-  const fetchSellers = () => {
-    const allUsers = localDb.auth.getAll();
+  const fetchSellers = async () => {
+    const allUsers = await localDb.auth.getAll();
     setSellers(allUsers.filter(u => u.role === "seller"));
   };
 
@@ -49,7 +49,7 @@ export default function SellerManagement() {
     setSaving(true);
     await new Promise(r => setTimeout(r, 600));
 
-    localDb.auth.insert({
+    await localDb.auth.insert({
       email: form.email,
       password: form.password,
       full_name: form.fullName,
@@ -65,15 +65,15 @@ export default function SellerManagement() {
   };
 
   const toggleActive = async (seller: AppUser) => {
-    localDb.auth.update(seller.id, { is_active: !seller.is_active });
+    await localDb.auth.update(seller.id, { is_active: !seller.is_active });
     toast.success(seller.is_active ? "Access revoked" : "Access restored");
     fetchSellers();
   };
 
-  const forceResetPassword = (seller: AppUser) => {
-    localDb.auth.update(seller.id, { password: "password123" });
+  const forceResetPassword = async (seller: AppUser) => {
+    await localDb.auth.update(seller.id, { password: "password123" });
     toast.warning(`Security Protocol: Password for ${seller.full_name} reset to default.`);
-    localDb.auditLogs.create("Security", `Admin force-reset password for ${seller.full_name}`, "admin", "Admin");
+    await localDb.auditLogs.create("Security", `Admin force-reset password for ${seller.full_name}`, "admin", "Admin");
     fetchSellers();
     if (selectedSeller?.id === seller.id) setSelectedSeller({...seller, password: "password123"});
   };
@@ -83,14 +83,15 @@ export default function SellerManagement() {
     setIntelOpen(true);
   };
 
-  const getSellerPerformance = (sellerId: string) => {
-    const sales = localDb.sales.getDetailed().filter(s => s.seller_id === sellerId);
-    const drugs = localDb.drugs.getAll();
+  const getSellerPerformance = async (sellerId: string) => {
+    const sales = await localDb.sales.getDetailed();
+    const sellerSales = sales.filter(s => s.seller_id === sellerId);
+    const drugs = await localDb.drugs.getAll();
     const costMap = drugs.reduce((acc, d) => ({ ...acc, [d.id]: d.cost_price || 0 }), {} as any);
 
     const perf: Record<string, { name: string, qty: number, revenue: number, profit: number }> = {};
 
-    sales.forEach(s => {
+    sellerSales.forEach(s => {
       s.items.forEach((item: any) => {
         if (!perf[item.drug_id]) {
           perf[item.drug_id] = { name: item.drug_name, qty: 0, revenue: 0, profit: 0 };

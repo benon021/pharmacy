@@ -16,7 +16,11 @@ export default function SellerCatalog() {
   const [intelData, setIntelData] = useState<any>(null);
 
   useEffect(() => {
-    setDrugs(localDb.drugs.getAll().filter(d => d.is_active));
+    const fetchDrugs = async () => {
+      const allDrugs = await localDb.drugs.getAll();
+      setDrugs(allDrugs.filter(d => d.is_active));
+    };
+    fetchDrugs();
   }, []);
 
   const filtered = drugs.filter(d => {

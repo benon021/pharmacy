@@ -23,8 +23,9 @@ export default function SupplierManagement() {
     category: "Wholesale"
   });
 
-  const fetchSuppliers = () => {
-    setSuppliers(localDb.suppliers.getAll());
+  const fetchSuppliers = async () => {
+    const data = await localDb.suppliers.getAll();
+    setSuppliers(data);
   };
 
   useEffect(() => {
@@ -40,7 +41,7 @@ export default function SupplierManagement() {
     // Simulate network delay
     await new Promise(r => setTimeout(r, 600));
 
-    localDb.suppliers.insert({
+    await localDb.suppliers.insert({
       ...form,
       is_active: true
     });

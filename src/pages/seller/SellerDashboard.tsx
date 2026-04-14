@@ -16,18 +16,21 @@ export default function SellerDashboard() {
 
   useEffect(() => {
     if (!user) return;
-    const allDetailed = localDb.sales.getDetailed();
-    const sellerSales = allDetailed.filter(s => s.seller_id === user.id);
-    const today = new Date().toISOString().split("T")[0];
-    const todaySales = sellerSales.filter(s => s.created_at.startsWith(today));
+    const fetchSellerStats = async () => {
+      const allDetailed = await localDb.sales.getDetailed();
+      const sellerSales = allDetailed.filter(s => s.seller_id === user.id);
+      const today = new Date().toISOString().split("T")[0];
+      const todaySales = sellerSales.filter(s => s.created_at.startsWith(today));
 
-    setStats({
-      totalSales: sellerSales.length,
-      totalRevenue: sellerSales.reduce((s, sale) => s + Number(sale.total_amount), 0),
-      todaySales: todaySales.length,
-      todayRevenue: todaySales.reduce((s, sale) => s + Number(sale.total_amount), 0),
-    });
-    setRecentSales(sellerSales.slice(0, 5));
+      setStats({
+        totalSales: sellerSales.length,
+        totalRevenue: sellerSales.reduce((s, sale) => s + Number(sale.total_amount), 0),
+        todaySales: todaySales.length,
+        todayRevenue: todaySales.reduce((s, sale) => s + Number(sale.total_amount), 0),
+      });
+      setRecentSales(sellerSales.slice(0, 5));
+    };
+    fetchSellerStats();
   }, [user]);
 
   const cards = [

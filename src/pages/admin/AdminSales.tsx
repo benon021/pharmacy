@@ -13,7 +13,11 @@ export default function AdminSales() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    setSales(localDb.sales.getDetailed());
+    const fetchSales = async () => {
+      const data = await localDb.sales.getDetailed();
+      setSales(data);
+    };
+    fetchSales();
   }, []);
 
   const filteredSales = sales.filter(s => 

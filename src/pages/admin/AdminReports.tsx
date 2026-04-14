@@ -27,11 +27,12 @@ export default function AdminReports() {
   const [profitStats, setProfitStats] = useState({ revenue: 0, cost: 0, expenses: 0, netProfit: 0, margin: 0 });
 
   useEffect(() => {
-    const allSales = localDb.sales.getDetailed();
-    const allRawSales = localDb.sales.getAll();
-    const drugs = localDb.drugs.getAll();
-    const users = localDb.auth.getAll(); 
-    const expenses = localDb.expenses.getAll();
+    const fetchReports = async () => {
+      const allSales = await localDb.sales.getDetailed();
+      const allRawSales = await localDb.sales.getAll();
+      const drugs = await localDb.drugs.getAll();
+      const users = await localDb.auth.getAll(); 
+      const expenses = await localDb.expenses.getAll();
 
     // Filtering based on timeRange
     const now = new Date();
@@ -146,11 +147,12 @@ export default function AdminReports() {
     filteredSales.forEach(s => s.items.forEach((item: any) => totalCost += (drugCostMap[item.drug_id] || 0) * Number(item.quantity)));
     const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
     const netProfit = totalRevenue - totalCost - totalExpenses;
-    const margin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+      const margin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
-    setProfitStats({ revenue: totalRevenue, cost: totalCost, expenses: totalExpenses, netProfit, margin: Math.round(margin) });
-    setProjections({ next30Days: Math.round((allRawSales.reduce((sum, s) => sum + Number(s.total_amount), 0) / 30 || 0) * 30 * 1.15), growth: 15 });
-
+      setProfitStats({ revenue: totalRevenue, cost: totalCost, expenses: totalExpenses, netProfit, margin: Math.round(margin) });
+      setProjections({ next30Days: Math.round((allRawSales.reduce((sum, s) => sum + Number(s.total_amount), 0) / 30 || 0) * 30 * 1.15), growth: 15 });
+    };
+    fetchReports();
   }, [timeRange]);
 
   return (
