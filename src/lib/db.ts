@@ -35,7 +35,7 @@ export interface Drug {
   reorder_level: number;
   unit: string;
   manufacturer: string | null;
-  supplier_id?: string | null;
+  supplier: string | null;
   description: string | null;
   cost_price: number | null;
   price: number;

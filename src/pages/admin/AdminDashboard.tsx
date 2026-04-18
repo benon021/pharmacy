@@ -97,46 +97,39 @@ export default function AdminDashboard() {
 
 
   const statCards = [
-    { label: "Revenue", value: `KES ${stats.totalRevenue.toLocaleString()}`, icon: DollarSign, color: "text-primary", glow: "glow-primary" },
-    { label: "Total Drugs", value: stats.totalDrugs, icon: Package, color: "text-accent", glow: "glow-accent" },
-    { label: "Low Stock", value: stats.lowStockCount, icon: AlertTriangle, color: "text-destructive", glow: "" },
-    { label: "Sales Today", value: stats.totalSalesToday, icon: ShoppingCart, color: "text-blue-400", glow: "" },
+    { label: "Revenue", value: `KES ${stats.totalRevenue.toLocaleString()}`, icon: DollarSign, color: "text-primary" },
+    { label: "Total Medicines", value: stats.totalDrugs, icon: Package, color: "text-slate-600" },
+    { label: "Low Stock", value: stats.lowStockCount, icon: AlertTriangle, color: "text-red-600" },
+    { label: "Sales Today", value: stats.totalSalesToday, icon: ShoppingCart, color: "text-blue-600" },
   ];
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-10">
       <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2 text-primary font-bold text-sm">
-          <Activity className="h-4 w-4" />
-          System Status: Online
-        </div>
-        <h1 className="text-4xl font-black tracking-tighter text-white italic uppercase">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">
           Pharmacy Dashboard
         </h1>
-        <p className="text-muted-foreground font-medium">Overview of store performance and inventory health</p>
+        <p className="text-muted-foreground text-base">Key insights into branch performance and stock levels.</p>
       </div>
 
-      {/* POS Quick Access */}
+      {/* Point of Sale Quick Access */}
       <Link 
         to="/seller/new-sale" 
-        className="group relative flex items-center justify-between p-8 rounded-[2.5rem] bg-primary/10 border border-primary/20 hover:bg-primary/15 transition-all overflow-hidden shadow-2xl shadow-primary/5"
+        className="group relative flex items-center justify-between p-6 rounded-lg bg-primary/[0.03] border border-primary/20 hover:bg-primary/[0.05] transition-all overflow-hidden shadow-sm"
       >
-        <div className="absolute top-0 right-0 p-12 opacity-5 scale-150 rotate-12 group-hover:scale-[1.6] group-hover:rotate-6 transition-all duration-700">
-           <ShoppingCart className="h-48 w-48 text-primary" />
-        </div>
-        <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
-          <div className="h-20 w-20 rounded-3xl bg-primary flex items-center justify-center glow-primary shadow-xl shadow-primary/20">
-            <ShoppingCart className="h-10 w-10 text-primary-foreground font-black" />
+        <div className="flex items-center gap-6 relative z-10">
+          <div className="h-14 w-14 rounded-lg bg-primary flex items-center justify-center text-white shadow-md">
+            <ShoppingCart className="h-7 w-7" />
           </div>
-          <div className="text-center md:text-left space-y-1">
-            <h2 className="text-3xl font-black text-foreground dark:text-white italic tracking-tighter">POS Terminal</h2>
-            <p className="text-sm font-bold text-primary uppercase tracking-widest flex items-center gap-2 justify-center md:justify-start">
-               Launch checkout system <ArrowRight className="h-4 w-4" />
+          <div className="space-y-0.5">
+            <h2 className="text-xl font-bold text-foreground">Point of Sale (POS)</h2>
+            <p className="text-sm text-primary font-medium flex items-center gap-1.5">
+               Open the transaction terminal <ArrowRight className="h-3.5 w-3.5" />
             </p>
           </div>
         </div>
-        <div className="hidden md:flex h-14 px-8 items-center gap-3 rounded-2xl bg-primary text-black font-black uppercase tracking-[0.2em] text-[10px] group-hover:gap-5 transition-all">
-          Open Now <ArrowRight className="h-4 w-4" />
+        <div className="hidden md:flex h-10 px-6 items-center gap-2 rounded-md bg-primary text-white font-bold uppercase tracking-widest text-[10px] shadow-sm">
+          New Sale
         </div>
       </Link>
 
@@ -146,13 +139,15 @@ export default function AdminDashboard() {
           <div key={stat.label} className="premium-card group" style={{ animationDelay: `${i * 100}ms` }}>
             <div className="flex items-start justify-between">
               <div className="space-y-2">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{stat.label}</p>
-                <p className={`stat-value ${stat.color} ${stat.glow}`}>{stat.value}</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#A0A0FF]/40">{stat.label}</p>
+                <div className="stat-value text-white group-hover:aurora-text transition-all duration-500">{stat.value}</div>
               </div>
-              <div className={`p-3 rounded-xl bg-card dark:bg-white/5 border border-border dark:border-white/10 ${stat.color}`}>
-                <stat.icon className="h-5 w-5" />
+              <div className={cn("p-4 rounded-2xl bg-white/5 border border-white/10 group-hover:border-primary/50 transition-all", stat.color)}>
+                <stat.icon size={20} />
               </div>
             </div>
+            {/* Subtle Aurora Glow on Hover */}
+            <div className="absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         ))}
       </div>
@@ -161,39 +156,39 @@ export default function AdminDashboard() {
       {(stats.expiredCount > 0 || stats.lowStockCount > 0) && (
         <div className="grid gap-4 sm:grid-cols-2">
           {stats.expiredCount > 0 && (
-            <Link to="/admin/expiry" className="flex items-center gap-4 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 hover:bg-red-500/15 transition-all group">
-              <div className="h-12 w-12 rounded-xl bg-red-500/20 flex items-center justify-center border border-red-500/30">
-                <CalendarDays className="h-6 w-6 text-red-500" />
+            <Link to="/admin/expiry" className="flex items-center gap-4 p-4 rounded-lg bg-red-50 dark:bg-red-500/5 border border-red-200 dark:border-red-500/20 hover:shadow-md transition-all group">
+              <div className="h-10 w-10 rounded-md bg-red-100 dark:bg-red-500/10 flex items-center justify-center border border-red-200 dark:border-red-500/20">
+                <CalendarDays className="h-5 w-5 text-red-600" />
               </div>
               <div className="flex-1">
-                <p className="font-bold text-red-400">{stats.expiredCount} Expired Item{stats.expiredCount > 1 ? "s" : ""}</p>
-                <p className="text-xs text-red-400/60">Please remove these from the shelves immediately.</p>
+                <p className="text-sm font-bold text-red-900 dark:text-red-400">{stats.expiredCount} Expired Medicine{stats.expiredCount > 1 ? "s" : ""}</p>
+                <p className="text-[11px] text-red-700 dark:text-red-400/60">Remove items from shelves immediately.</p>
               </div>
-              <ChevronRight className="h-5 w-5 text-red-500/40 group-hover:text-red-500 transition-colors" />
+              <ChevronRight className="h-4 w-4 text-red-400" />
             </Link>
           )}
           {stats.expiringCount > 0 && (
-            <Link to="/admin/expiry" className="flex items-center gap-4 p-4 rounded-2xl bg-amber-400/10 border border-amber-400/20 hover:bg-amber-400/15 transition-all group">
-              <div className="h-12 w-12 rounded-xl bg-amber-400/20 flex items-center justify-center border border-amber-400/30">
-                <AlertTriangle className="h-6 w-6 text-amber-400" />
+            <Link to="/admin/expiry" className="flex items-center gap-4 p-4 rounded-lg bg-amber-50 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/20 hover:shadow-md transition-all group">
+              <div className="h-10 w-10 rounded-md bg-amber-100 dark:bg-amber-500/10 flex items-center justify-center border border-amber-200 dark:border-amber-500/20">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
               </div>
               <div className="flex-1">
-                <p className="font-bold text-amber-300">{stats.expiringCount} Drug{stats.expiringCount > 1 ? "s" : ""} Expiring Soon</p>
-                <p className="text-xs text-amber-400/60">Within 90 days — review shelf placement</p>
+                <p className="text-sm font-bold text-amber-900 dark:text-amber-400">{stats.expiringCount} Item{stats.expiringCount > 1 ? "s" : ""} Expiring Soon</p>
+                <p className="text-[11px] text-amber-700 dark:text-amber-400/60">Within 90 days — check shelf placement.</p>
               </div>
-              <ChevronRight className="h-5 w-5 text-amber-400/40 group-hover:text-amber-400 transition-colors" />
+              <ChevronRight className="h-4 w-4 text-amber-400" />
             </Link>
           )}
         </div>
       )}
 
-      {/* Revenue Chart + Recent Sales */}
+      {/* Financial Trends + Transactions */}
       <div className="grid gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3 premium-card border-border dark:border-white/5!">
+        <div className="lg:col-span-3 bg-white dark:bg-slate-900 border border-border p-6 rounded-lg shadow-sm">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-bold italic tracking-tighter capitalize">Revenue Analytics</h2>
+              <h2 className="text-lg font-bold">Financial Trends</h2>
             </div>
             <div className="flex items-center gap-4">
                <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary uppercase">

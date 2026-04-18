@@ -27,13 +27,18 @@ interface ScannerHubModalProps {
   onClose: () => void;
   onScan: (barcode: string) => void;
   title?: string;
+  sessionId?: string; // Accept session ID from parent
 }
 
 type ScanMode = "hardware" | "webcam" | "phone";
 
-export default function ScannerHubModal({ open, onClose, onScan, title = "Scanner Hub" }: ScannerHubModalProps) {
+export default function ScannerHubModal({ open, onClose, onScan, title = "Scanner Hub", sessionId: propSessionId }: ScannerHubModalProps) {
   const [mode, setMode] = useState<ScanMode>("hardware");
-  const [sessionId] = useState(() => crypto.randomUUID());
+  const [internalSessionId] = useState(() => crypto.randomUUID());
+  
+  // Use prop sessionId if available, otherwise fallback to internal
+  const sessionId = propSessionId || internalSessionId;
+  
   const [isPaired, setIsPaired] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
 

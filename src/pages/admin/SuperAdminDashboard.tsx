@@ -227,73 +227,69 @@ export default function SuperAdminDashboard() {
   if (loadingPharmacies || loadingStaff || loadingSales) return <LoadingSpinner />;
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-[1600px] mx-auto">
+    <div className="p-8 space-y-8 animate-fade-in max-w-[1600px] mx-auto pb-20">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-white/5 pb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6">
         <div>
-          <h1 className="text-5xl font-black tracking-tighter flex items-center gap-4 text-white uppercase italic">
-            <div className="h-14 w-14 rounded-3xl bg-primary/10 flex items-center justify-center border border-primary/20 shadow-2xl shadow-primary/20">
-              <ShieldCheck className="h-8 w-8 text-primary" />
-            </div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             Platform Administration
           </h1>
-          <p className="text-muted-foreground mt-3 font-black text-xs uppercase tracking-[0.3em] flex items-center gap-2 opacity-60">
-            Global Network Management • Revenue Analytics • Pharmacy Hub
+          <p className="text-muted-foreground mt-1 text-sm">
+            Centralized management of the global pharmacy network and revenue analytics.
           </p>
         </div>
         
         <div className="flex items-center gap-3">
            <Button 
             variant="outline"
-            className="h-14 px-6 rounded-2xl border-white/5 text-muted-foreground font-black uppercase text-[10px] tracking-widest gap-2 hover:bg-white/5"
+            className="h-11 px-5 rounded-lg border-border text-muted-foreground font-bold uppercase text-[10px] tracking-widest gap-2"
             onClick={() => navigate("/super-admin/pulse")}
           >
             <Sliders className="h-4 w-4" /> System Control
           </Button>
           <Button 
-            className="h-14 px-8 rounded-2xl bg-primary hover:bg-primary/90 text-black font-black uppercase text-xs tracking-[0.2em] shadow-2xl shadow-primary/20 gap-2 group transition-all"
+            className="h-11 px-6 rounded-lg bg-primary hover:bg-primary/90 text-white font-bold uppercase text-[10px] tracking-widest shadow-sm gap-2 transition-all"
             onClick={() => navigate("/super-admin/onboard")}
           >
-            <Plus className="h-5 w-5 transition-transform group-hover:rotate-90" />
+            <Plus className="h-4 w-4" />
             Add New Pharmacy
           </Button>
         </div>
       </div>
 
       {/* Analytics Insight Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
-          { label: "Platform MRR", value: `KSh ${stats.totalMRR.toLocaleString()}`, sub: "+12.5% from last month", icon: DollarSign, color: "text-emerald-500" },
-          { label: "Network Sales", value: `KSh ${stats.totalSalesVolume.toLocaleString()}`, sub: "Gross merchandise traffic", icon: TrendingUp, color: "text-blue-500" },
+          { label: "Platform MRR", value: `KES ${stats.totalMRR.toLocaleString()}`, sub: "+12.5% from last month", icon: DollarSign, color: "text-emerald-600" },
+          { label: "Network Sales", value: `KES ${stats.totalSalesVolume.toLocaleString()}`, sub: "Gross sales volume", icon: TrendingUp, color: "text-blue-600" },
           { label: "Active Pharmacies", value: stats.activeNodes, sub: "Revenue-generating branches", icon: Activity, color: "text-primary" },
-          { label: "Network Uptime", value: "99.9%", sub: "System availability", icon: Clock, color: "text-amber-500" },
+          { label: "System Uptime", value: "99.9%", sub: "High availability", icon: Clock, color: "text-amber-600" },
         ].map((stat, i) => (
-          <Card key={i} className="bg-card/30 border-primary/10 backdrop-blur-md overflow-hidden relative group hover:border-primary/30 transition-all border-l-4 border-l-primary/40">
-            <CardHeader className="pb-2 space-y-1">
-              <CardDescription className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground/60 flex items-center gap-2">
-                <stat.icon className={`h-3 w-3 ${stat.color}`} /> {stat.label}
-              </CardDescription>
-              <CardTitle className="text-3xl font-black text-foreground! tracking-tight">{stat.value}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-500 bg-emerald-500/5 w-fit px-2 py-0.5 rounded-full border border-emerald-500/10">
-                <ArrowUpRight size={10} /> {stat.sub}
+          <div key={i} className="bg-white dark:bg-slate-900 border border-border p-6 rounded-lg shadow-sm">
+            <div className="flex flex-col space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{stat.label}</p>
+                <stat.icon className={`h-4 w-4 ${stat.color}`} />
               </div>
-            </CardContent>
-          </Card>
+              <p className="text-2xl font-bold tracking-tight text-foreground">{stat.value}</p>
+              <p className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-2">
+                <ArrowUpRight size={10} /> {stat.sub}
+              </p>
+            </div>
+          </div>
         ))}
       </div>
 
       <Tabs defaultValue="nodes" className="w-full">
-        <TabsList className="bg-card/40 border border-primary/10 p-1.5 h-16 rounded-[2rem] gap-2 mb-8 backdrop-blur-3xl w-full md:w-fit">
+        <TabsList className="bg-muted p-1 h-12 rounded-lg gap-1 mb-8 w-full md:w-fit">
           {[
             { id: "nodes", label: "Registry", icon: Building2 },
-            { id: "analytics", label: "SaaS Insight", icon: TrendingUp },
-            { id: "billing", label: "Subscription Hub", icon: CreditCard },
+            { id: "analytics", label: "Insights", icon: TrendingUp },
+            { id: "billing", label: "Billing", icon: CreditCard },
             { id: "staff", label: "Personnel", icon: Users },
-            { id: "activity", label: "Network Traffic", icon: Activity },
+            { id: "activity", label: "Activity", icon: Activity },
           ].map(tab => (
-            <TabsTrigger key={tab.id} value={tab.id} className="rounded-2xl px-8 h-full data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-black uppercase text-[10px] tracking-widest gap-2.5 transition-all">
+            <TabsTrigger key={tab.id} value={tab.id} className="rounded-md px-6 h-full font-bold uppercase text-[10px] tracking-widest gap-2 transition-all">
               <tab.icon size={14} className="opacity-70" /> {tab.label}
             </TabsTrigger>
           ))}
@@ -301,95 +297,90 @@ export default function SuperAdminDashboard() {
 
         {/* Tab 1: Node Registry */}
         <TabsContent value="nodes" className="space-y-6">
-           <Card className="bg-card/40 border-primary/10 backdrop-blur-2xl overflow-hidden shadow-2xl rounded-[2.5rem] border-t-primary/20">
-            <CardHeader className="flex flex-row items-center justify-between border-b border-primary/5 pb-8 p-8">
+           <Card className="bg-white dark:bg-slate-900 border border-border shadow-sm rounded-lg overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-border p-6 bg-muted/20">
               <div>
-                <CardTitle className="text-2xl font-black tracking-tight">Pharmacy Registry</CardTitle>
-                <CardDescription className="font-bold text-muted-foreground/60">Manage pharmacy licenses, access status, and branch health.</CardDescription>
+                <CardTitle className="text-xl font-bold tracking-tight">Pharmacy Network</CardTitle>
+                <CardDescription className="font-medium text-muted-foreground">Manage pharmacy branches, license status, and system access.</CardDescription>
               </div>
                <div className="flex items-center gap-3">
                  <div className="relative w-64">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/40" />
-                    <Input placeholder="Search Registry..." className="h-12 pl-12 rounded-xl bg-primary/5 border-primary/10 focus:border-primary/40 font-bold" />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Search network..." className="h-10 pl-11 rounded-lg bg-background border-border text-sm" />
                  </div>
-                 <Button variant="outline" size="icon" className="h-12 w-12 rounded-xl border-primary/10 hover:bg-primary/10 text-primary">
-                    <Filter size={20} />
-                 </Button>
                </div>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
-                <TableHeader className="bg-primary/5">
-                  <TableRow className="border-primary/5 hover:bg-transparent">
-                    <TableHead className="py-6 px-10 font-black uppercase tracking-[0.2em] text-[10px] text-primary/60">Pharmacy Name</TableHead>
-                    <TableHead className="font-black uppercase tracking-[0.2em] text-[10px] text-primary/60">Access Status</TableHead>
-                    <TableHead className="font-black uppercase tracking-[0.2em] text-[10px] text-primary/60">Subscription Tier</TableHead>
-                    <TableHead className="font-black uppercase tracking-[0.2em] text-[10px] text-primary/60">Node Traffic</TableHead>
-                    <TableHead className="text-right px-10 font-black uppercase tracking-[0.2em] text-[10px] text-primary/60">Governance</TableHead>
+                <TableHeader className="bg-muted/50">
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="py-4 px-8 font-bold uppercase tracking-widest text-[10px] text-muted-foreground">Pharmacy Name</TableHead>
+                    <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground">Status</TableHead>
+                    <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground">Tier</TableHead>
+                    <TableHead className="font-bold uppercase tracking-widest text-[10px] text-muted-foreground">Activity</TableHead>
+                    <TableHead className="text-right px-8 font-bold uppercase tracking-widest text-[10px] text-muted-foreground">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {pharmacies.map((p) => (
-                    <TableRow key={p.id} className="border-primary/5 hover:bg-primary/5 group transition-all">
-                      <TableCell className="py-6 px-10 font-black text-base tracking-tight flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 border border-orange-500/20 shadow-lg group-hover:scale-110 transition-transform">
-                          <Building2 size={20} />
+                    <TableRow key={p.id} className="border-border hover:bg-muted/50 group transition-all">
+                      <TableCell className="py-4 px-8 flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                          <Building2 size={16} />
                         </div>
                         <div className="flex flex-col">
-                           <span className="text-white">{p.name}</span>
-                           <span className="text-[10px] text-muted-foreground/60 flex items-center gap-1"><Calendar size={10}/> Since {new Date(p.created_at).toLocaleDateString()}</span>
+                           <span className="font-bold text-foreground">{p.name}</span>
+                           <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                             <Calendar size={10}/> Joined {new Date(p.created_at).toLocaleDateString()}
+                           </span>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.15em] border ${
-                          p.status === 'active' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'
+                        <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${
+                          p.status === 'active' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 border-emerald-200 dark:border-emerald-500/20' : 'bg-red-50 dark:bg-red-500/10 text-red-600 border-red-200 dark:border-red-500/20'
                         }`}>
-                          <div className={`h-1.5 w-1.5 rounded-full ${p.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                          <div className={`h-1.5 w-1.5 rounded-full ${p.status === 'active' ? 'bg-emerald-500' : 'bg-red-500'}`} />
                           {p.status}
                         </div>
                       </TableCell>
                       <TableCell>
                          <div className="flex flex-col">
-                            <span className="font-black uppercase text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20 w-fit">{p.subscription_tier || 'Enterprise'}</span>
-                            <span className="text-[10px] text-muted-foreground mt-1 font-bold">Expires: {p.expires_at ? new Date(p.expires_at).toLocaleDateString() : 'Active'}</span>
+                            <span className="font-bold uppercase text-[9px] text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20 w-fit">{p.subscription_tier || 'Professional'}</span>
+                            <span className="text-[10px] text-muted-foreground mt-1 font-medium">Monthly: KES {p.monthly_fee?.toLocaleString()}</span>
                          </div>
                       </TableCell>
                       <TableCell>
-                         <div className="flex items-center gap-2 font-black text-sm text-foreground!">
-                            <Activity size={14} className="text-primary/60" />
-                            KSh {p.total_revenue_contributed?.toLocaleString() || '0'}
+                         <div className="flex items-center gap-2 font-bold text-sm text-foreground">
+                            KES {p.total_revenue_contributed?.toLocaleString() || '0'}
                          </div>
                       </TableCell>
-                      <TableCell className="text-right px-10">
+                      <TableCell className="text-right px-8">
                         <div className="flex items-center justify-end gap-2">
-                           <Button onClick={() => handleEnterBranch(p.id, p.name)} className="h-10 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-xs hover:bg-primary hover:text-black gap-2 transition-all opacity-0 group-hover:opacity-100">
-                             <ExternalLink size={14} /> View Branch
+                           <Button onClick={() => handleEnterBranch(p.id, p.name)} variant="ghost" className="h-9 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/5 font-bold text-xs gap-2">
+                             <ExternalLink size={14} /> View
                            </Button>
                            <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl hover:bg-primary/10">
-                                <MoreVertical size={20} />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-64 bg-[#0a0a0c] border-white/10 rounded-2xl p-2 shadow-3xl">
-                               <DropdownMenuLabel className="text-[10px] font-black uppercase text-muted-foreground opacity-60 tracking-[0.2em] px-4 pt-4 mb-2">Branch Controls</DropdownMenuLabel>
-                              <DropdownMenuItem onClick={() => handleEnterBranch(p.id, p.name)} className="cursor-pointer gap-3 py-4 font-black text-xs text-primary focus:bg-primary/10 rounded-xl px-4">
-                                <ExternalLink size={16} /> Login as Admin
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator className="bg-white/5 mx-2" />
-                              <DropdownMenuItem className="cursor-pointer gap-3 py-4 font-black text-xs text-foreground! rounded-xl px-4">
-                                <CreditCard size={16} /> Manage Billing
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleTogglePharmacyStatus(p.id, p.status)} className="cursor-pointer gap-3 py-4 font-black text-xs text-foreground! rounded-xl px-4">
-                                {p.status === 'active' ? <PauseCircle size={16} className="text-red-500" /> : <PlayCircle size={16} className="text-emerald-500" />}
-                                {p.status === 'active' ? 'Suspend Branch' : 'Activate Branch'}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator className="bg-white/5 mx-2" />
-                              <DropdownMenuItem className="cursor-pointer gap-3 py-4 font-black text-xs text-red-500 focus:bg-red-500/10 rounded-xl px-4">
-                                <Trash2 size={16} /> Delete Pharmacy Branch
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                             <DropdownMenuTrigger asChild>
+                               <Button variant="ghost" size="icon" className="h-9 w-9 rounded-md hover:bg-muted">
+                                 <MoreVertical size={18} />
+                               </Button>
+                             </DropdownMenuTrigger>
+                             <DropdownMenuContent align="end" className="w-56 bg-popover border-border rounded-lg p-1 shadow-xl">
+                               <DropdownMenuLabel className="text-[9px] font-bold uppercase text-muted-foreground tracking-widest px-3 py-2">Branch Controls</DropdownMenuLabel>
+                               <DropdownMenuItem onClick={() => handleEnterBranch(p.id, p.name)} className="cursor-pointer gap-2 py-2.5 font-bold text-xs text-primary focus:bg-primary/5 rounded-md px-3">
+                                 <ExternalLink size={14} /> Enter Dashboard
+                               </DropdownMenuItem>
+                               <DropdownMenuSeparator className="bg-border mx-1" />
+                               <DropdownMenuItem onClick={() => handleTogglePharmacyStatus(p.id, p.status)} className="cursor-pointer gap-2 py-2.5 font-bold text-xs text-foreground rounded-md px-3">
+                                 {p.status === 'active' ? <PauseCircle size={14} className="text-red-500" /> : <PlayCircle size={14} className="text-emerald-500" />}
+                                 {p.status === 'active' ? 'Suspend Access' : 'Activate Access'}
+                               </DropdownMenuItem>
+                               <DropdownMenuSeparator className="bg-border mx-1" />
+                               <DropdownMenuItem className="cursor-pointer gap-2 py-2.5 font-bold text-xs text-red-600 focus:bg-red-50 rounded-md px-3">
+                                 <Trash2 size={14} /> Remove Branch
+                               </DropdownMenuItem>
+                             </DropdownMenuContent>
+                           </DropdownMenu>
                         </div>
                       </TableCell>
                     </TableRow>

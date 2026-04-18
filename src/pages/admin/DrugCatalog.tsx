@@ -111,6 +111,7 @@ export default function DrugCatalog() {
   const [intelTab, setIntelTab] = useState<any>("intelligence");
   const [scannerModalOpen, setScannerModalOpen] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID());
+  const [lastRemoteBarcode, setLastRemoteBarcode] = useState<string | null>(null);
 
   useEffect(() => {
 
@@ -273,12 +274,21 @@ export default function DrugCatalog() {
 
   const handleRemoteScan = (barcode: string) => {
     setForm(prev => ({ ...prev, barcode }));
-    toast.success("Barcode Captured from Phone Scanner", { duration: 1500 });
-    // Ack back to phone
+    setLastRemoteBarcode(barcode);
+    toast.success("Identity Captured", { 
+      description: `Synced: ${barcode}`,
+      duration: 3000,
+      icon: <CheckCircle2 className="text-primary animate-pulse" />
+    });
+    
+    // Auto-clear success state after pulse
+    setTimeout(() => setLastRemoteBarcode(null), 2000);
+
+    // Ack back to phone (on shared channel)
     supabase.channel(`scanner-session:${sessionId}`).send({
       type: "broadcast",
       event: "SCAN_ACK",
-      payload: { product: { name: barcode, price: "Linked" } }
+      payload: { product: { name: barcode, price: "Verified Link" } }
     });
   };
 
@@ -302,11 +312,11 @@ export default function DrugCatalog() {
     if (editingDrug) {
       const { error } = await localDb.drugs.update(editingDrug.id, payload);
       if (error) toast.error(error.message);
-      else toast.success("Forensic record updated successfully");
+      else toast.success("Record updated successfully");
     } else {
       const { error } = await localDb.drugs.insert(payload);
       if (error) toast.error(error.message);
-      else toast.success("New product registered in inventory");
+      else toast.success("Product registered successfully");
     }
 
     setSaving(false);
@@ -316,27 +326,27 @@ export default function DrugCatalog() {
 
 
   return (
-    <div className="space-y-8 animate-fade-in pb-10">
+    <div className="space-y-6 animate-fade-in pb-10">
       <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6">
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-primary font-black text-xs uppercase tracking-[0.3em] mb-2">
-            <ShieldCheck className="h-4 w-4" /> PPB Regulatory Compliance v3.5
+          <div className="flex items-center gap-2 text-primary font-bold text-[10px] uppercase tracking-widest mb-2">
+            <ShieldCheck className="h-4 w-4" /> Regulatory Compliance System
           </div>
-          <h1 className="text-4xl xl:text-5xl font-black tracking-tight text-foreground dark:text-white italic tracking-tighter flex items-baseline gap-3">
-            Inventory Ledger <span className="text-primary not-italic tracking-normal text-sm font-black bg-primary/20 px-3 py-1 rounded-full">{drugs.length} Items</span>
+          <h1 className="text-3xl xl:text-4xl font-black tracking-tight text-foreground dark:text-white flex items-baseline gap-3">
+            Inventory Ledger <span className="text-primary text-sm font-bold bg-primary/10 px-3 py-1 rounded-lg">{drugs.length} Items</span>
           </h1>
-          <p className="text-muted-foreground text-base md:text-lg">Centralized pharmaceutical tracking with real-time forensic auditing</p>
+          <p className="text-muted-foreground text-base">Comprehensive management of pharmaceutical stock and branches.</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <input type="file" id="excel-import" className="hidden" accept=".xlsx, .xls, .csv" onChange={handleImport} />
           <Button
-            variant="ghost"
+            variant="outline"
             onClick={() => document.getElementById('excel-import')?.click()}
-            className="h-14 rounded-2xl bg-card dark:bg-white/5 border border-border dark:border-white/10 hover:bg-card dark:bg-white/10 gap-2 px-6 font-black uppercase text-[10px] tracking-widest"
+            className="h-12 rounded-lg gap-2 px-6 font-bold uppercase text-[10px] tracking-widest"
           >
-            <FileUp className="h-4 w-4 text-primary" /> Import Excel
+            <FileUp className="h-4 w-4" /> Import Excel
           </Button>
-          <Button onClick={openCreate} className="h-14 rounded-2xl shadow-2xl shadow-primary/20 gap-3 px-8 font-black uppercase text-[10px] tracking-[0.2em] bg-primary text-black hover:scale-105 transition-transform" size="lg">
+          <Button onClick={openCreate} className="h-12 rounded-lg gap-3 px-8 font-bold uppercase text-[10px] tracking-widest bg-primary text-black" size="lg">
             <Plus className="h-5 w-5" /> Add New Medicine
           </Button>
         </div>
@@ -344,17 +354,17 @@ export default function DrugCatalog() {
 
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1 group">
-          <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" />
+          <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary" />
           <Input
-            placeholder="Search by Brand, Formulation, Barcode or SKU..."
-            className="pl-14 h-16 rounded-[2rem] bg-card dark:bg-white/5 border-border dark:border-white/10 text-lg transition-all focus:bg-white/10 focus:ring-4 focus:ring-primary/5 shadow-inner"
+            placeholder="Search by Brand, Formulation, Barcode..."
+            className="pl-14 h-12 rounded-lg bg-card dark:bg-white/5 border-border dark:border-white/10 text-base transition-all focus:ring-2 focus:ring-primary/10 shadow-sm"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex gap-2 min-w-[240px]">
+        <div className="flex gap-2 min-w-[200px]">
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-full h-16 rounded-[2rem] bg-card dark:bg-white/5 border-border dark:border-white/10 font-black uppercase text-[10px] tracking-widest text-muted-foreground focus:ring-4 focus:ring-primary/5">
+            <SelectTrigger className="w-full h-12 rounded-lg bg-card dark:bg-white/5 border-border dark:border-white/10 font-bold uppercase text-[10px] tracking-widest text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-primary" />
                 <SelectValue placeholder="All Categories" />
@@ -376,12 +386,12 @@ export default function DrugCatalog() {
           <div className="premium-card !p-0 overflow-hidden shadow-2xl backdrop-blur-3xl">
         <Table>
           <TableHeader>
-            <TableRow className="bg-white/[0.03] hover:bg-white/[0.03] border-border dark:border-white/5">
-              <TableHead className="py-6 font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground px-8">Medicine Formulation</TableHead>
-              <TableHead className="py-6 font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Classification</TableHead>
-              <TableHead className="py-6 text-right font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground px-8">Retail Pulse</TableHead>
-              <TableHead className="py-6 text-right font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Operational Stock</TableHead>
-              <TableHead className="py-6 font-black text-[10px] uppercase tracking-[0.2em] text-muted-foreground px-8">Forensic Action</TableHead>
+            <TableRow className="bg-muted/50 border-border dark:border-white/5">
+              <TableHead className="py-4 font-bold text-[10px] uppercase tracking-widest text-muted-foreground px-6">Product Information</TableHead>
+              <TableHead className="py-4 font-bold text-[10px] uppercase tracking-widest text-muted-foreground">Category</TableHead>
+              <TableHead className="py-4 text-right font-bold text-[10px] uppercase tracking-widest text-muted-foreground px-6">Price</TableHead>
+              <TableHead className="py-4 text-right font-bold text-[10px] uppercase tracking-widest text-muted-foreground">Stock Level</TableHead>
+              <TableHead className="py-4 font-bold text-[10px] uppercase tracking-widest text-muted-foreground px-6">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -505,18 +515,14 @@ export default function DrugCatalog() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl w-[95vw] md:w-full bg-[#09090b] border-white/5 rounded-[1.5rem] md:rounded-[3rem] p-0 overflow-hidden shadow-[0_0_100px_rgba(16,185,129,0.1)] backdrop-blur-3xl">
-          <DialogHeader className="p-6 md:p-10 bg-white/[0.02] border-b border-white/5">
+        <DialogContent className="max-w-4xl w-[95vw] md:w-full bg-background border-border rounded-xl p-0 overflow-hidden shadow-2xl">
+          <DialogHeader className="p-6 md:p-8 bg-muted/30 border-b border-border">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
-                <DialogTitle className="text-3xl font-black italic tracking-tighter text-white uppercase">{editingDrug ? "Update Forensic Entry" : "Register New Product"}</DialogTitle>
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.4em] text-primary">
-                  <Activity className="h-3 w-3" /> System Operational | PPB Verified
+                <DialogTitle className="text-2xl font-bold tracking-tight text-foreground uppercase">{editingDrug ? "Update Product" : "Register New Product"}</DialogTitle>
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary">
+                   Inventory Management System
                 </div>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground mb-1">Global Catalog</p>
-                <Badge variant="outline" className="rounded-xl border-white/5 font-mono text-white tracking-widest">{drugs.length + 1} SKUs</Badge>
               </div>
             </div>
           </DialogHeader>
@@ -565,9 +571,33 @@ export default function DrugCatalog() {
                        <button onClick={generateBarcode} className="text-muted-foreground hover:underline lowercase text-[9px] tracking-normal">Auto Generate</button>
                     </div>
                   </Label>
-                  <div className="relative">
-                    <Barcode className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input className="h-14 pl-12 rounded-2xl bg-white/5 border-white/10 text-white font-mono tracking-widest text-lg" value={form.barcode} onChange={e => setForm({ ...form, barcode: e.target.value })} placeholder="Scan or type..." />
+                  <div className="relative group">
+                    <Barcode className={cn(
+                      "absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors",
+                      lastRemoteBarcode ? "text-primary animate-bounce" : "text-muted-foreground group-focus-within:text-primary"
+                    )} />
+                    <Input 
+                      className={cn(
+                        "h-14 pl-12 rounded-2xl bg-white/5 border-white/10 text-white font-mono tracking-widest text-lg transition-all duration-500",
+                        lastRemoteBarcode ? "border-primary ring-4 ring-primary/20 shadow-[0_0_30px_rgba(var(--primary-rgb),0.3)] bg-primary/10" : "focus:border-primary/40 focus:ring-4 focus:ring-primary/10"
+                      )} 
+                      value={form.barcode} 
+                      onChange={e => setForm({ ...form, barcode: e.target.value })} 
+                      placeholder="Scan or type..." 
+                    />
+                    
+                    {/* Capture Pulse Animation */}
+                    <AnimatePresence>
+                      {lastRemoteBarcode && (
+                        <motion.div 
+                          className="absolute inset-0 border-2 border-primary rounded-2xl pointer-events-none"
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1.05 }}
+                          exit={{ opacity: 0, scale: 1.2 }}
+                          transition={{ duration: 0.5 }}
+                        />
+                      )}
+                    </AnimatePresence>
                   </div>
                   {/* Live Barcode Preview */}
                   {form.barcode && (
@@ -833,7 +863,8 @@ export default function DrugCatalog() {
         open={scannerModalOpen} 
         onClose={() => setScannerModalOpen(false)} 
         onScan={handleRemoteScan}
-        title="Drug Registration Scanner"
+        sessionId={sessionId}
+        title="Pharma-Sync Bridge"
       />
     </div>
   );
