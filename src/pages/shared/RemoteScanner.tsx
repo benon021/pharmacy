@@ -17,7 +17,8 @@ import {
   VolumeX,
   Vibrate,
   VibrateOff,
-  Maximize2
+  Maximize2,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -267,6 +268,27 @@ export default function RemoteScanner() {
         {/* Scanner Viewport */}
         {sessionId && (
           <div className="space-y-6">
+            {!window.isSecureContext && window.location.hostname !== "localhost" && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-3"
+              >
+                <div className="flex items-center gap-3 text-amber-500">
+                  <AlertCircle size={18} />
+                  <h3 className="text-[10px] font-black uppercase tracking-widest">Insecure Context Detected</h3>
+                </div>
+                <p className="text-[11px] text-amber-200/60 leading-relaxed font-medium">
+                  Browsers block camera access on non-HTTPS connections. To test on a phone, you MUST use a secure tunnel (Ngrok) or deploy to Vercel/Production.
+                </p>
+                <div className="pt-2">
+                   <Button variant="outline" size="sm" className="h-8 px-4 border-amber-500/30 text-amber-500 text-[8px] font-black uppercase tracking-widest hover:bg-amber-500 hover:text-black">
+                      Permission Guide
+                   </Button>
+                </div>
+              </motion.div>
+            )}
+            
             <motion.div 
               layout
               className="relative aspect-video md:aspect-square rounded-[2.5rem] bg-black border border-white/10 overflow-hidden shadow-2xl spatial-shadow"
@@ -312,9 +334,15 @@ export default function RemoteScanner() {
                   />
                   
                   {/* Scanner Overlay UI */}
-                  <div className="absolute inset-0 pointer-events-none p-8 flex flex-col justify-between">
-                     <div className="flex justify-between">
+                  <div className="absolute inset-0 p-8 flex flex-col justify-between">
+                     <div className="flex justify-between items-start">
                         <div className="h-10 w-10 border-t-4 border-l-4 border-primary rounded-tl-2xl shadow-[-5px_-5px_15px_rgba(var(--primary-rgb),0.2)]" />
+                        <button 
+                          onClick={stopScanner}
+                          className="px-4 py-2 bg-red-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 shadow-2xl pointer-events-auto hover:bg-red-600 transition-colors"
+                        >
+                          <X size={12} /> Terminate Lens
+                        </button>
                         <div className="h-10 w-10 border-t-4 border-r-4 border-primary rounded-tr-2xl shadow-[5px_-5px_15px_rgba(var(--primary-rgb),0.2)]" />
                      </div>
                      <div className="flex justify-center">
