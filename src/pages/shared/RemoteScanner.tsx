@@ -49,18 +49,23 @@ export default function RemoteScanner() {
   
   const [cameras, setCameras] = useState<{ id: string, label: string }[]>([]);
   const [activeCameraIndex, setActiveCameraIndex] = useState(0);
+  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
-  useEffect(() => {
-    // Check for available cameras
-    Html5Qrcode.getCameras().then(devices => {
+  const refreshCameras = async () => {
+    try {
+      const devices = await Html5Qrcode.getCameras();
       if (devices && devices.length > 0) {
         setCameras(devices.map(d => ({ id: d.id, label: d.label })));
       }
-    }).catch(() => {
-      toast.error("Lens enumeration failed. Permissions issue.");
-    });
+    } catch (err) {
+      console.warn("Camera enumeration deferred until interaction.");
+    }
+  };
+
+  useEffect(() => {
+    refreshCameras();
   }, []);
 
   useEffect(() => {
@@ -115,30 +120,43 @@ export default function RemoteScanner() {
       scannerRef.current = scanner;
       
       const cameraId = cameras[activeCameraIndex]?.id;
+      const config = { fps: 25, qrbox: { width: 280, height: 180 } };
       
-      await scanner.start(
-        cameraId ? { deviceId: { exact: cameraId } } : { facingMode: "environment" },
-        { fps: 20, qrbox: { width: 280, height: 180 } },
-        (decodedText) => {
-          handleScan(decodedText);
-        },
-        () => {}
-      );
+      if (cameraId) {
+        await scanner.start({ deviceId: { exact: cameraId } }, config, handleScan, () => {});
+      } else {
+        await scanner.start({ facingMode: facingMode }, config, handleScan, () => {});
+      }
+      
       setIsScanning(true);
+      
+      // Retry enumeration after starting (some browsers only allow it after permission)
+      if (cameras.length === 0) {
+        setTimeout(refreshCameras, 500);
+      }
     } catch (err) {
       toast.error("Camera access failed. Check permissions.");
     }
   };
 
+  const toggleFacingMode = async () => {
+    const newMode = facingMode === "environment" ? "user" : "environment";
+    setFacingMode(newMode);
+    
+    if (isScanning) {
+      await stopScanner();
+      setTimeout(startScanner, 300);
+    }
+  };
+
   const cycleCamera = async () => {
-    if (cameras.length < 2) return;
+    if (cameras.length < 2) return toggleFacingMode();
     
     const nextIndex = (activeCameraIndex + 1) % cameras.length;
     setActiveCameraIndex(nextIndex);
     
     if (isScanning) {
       await stopScanner();
-      // Small timeout to allow the hardware to release
       setTimeout(startScanner, 300);
     }
   };
@@ -304,22 +322,32 @@ export default function RemoteScanner() {
                    >
                       <Zap size={40} className="fill-current" />
                    </motion.div>
-                   <div className="flex flex-col items-center gap-4">
-                     <Button 
-                      onClick={startScanner}
-                      className="h-14 px-10 rounded-2xl bg-white text-black font-black uppercase tracking-[0.2em] text-[10px] hover:bg-primary transition-colors"
-                     >
-                       Initialize Lens
-                     </Button>
-                     {cameras.length > 1 && (
-                       <button 
-                        onClick={cycleCamera}
-                        className="text-[9px] font-black uppercase tracking-widest text-primary/60 hover:text-primary transition-colors flex items-center gap-2"
+                     <div className="flex flex-col items-center gap-4">
+                       <Button 
+                        onClick={startScanner}
+                        className="h-14 px-10 rounded-2xl bg-white text-black font-black uppercase tracking-[0.2em] text-[10px] hover:bg-primary transition-colors focus:ring-0 focus:outline-none"
                        >
-                         <RefreshCw size={12} /> Cycle Lens ({activeCameraIndex + 1}/{cameras.length})
-                       </button>
-                     )}
-                   </div>
+                         Initialize Lens
+                       </Button>
+                       
+                       <div className="flex items-center gap-6">
+                         {cameras.length > 1 ? (
+                           <button 
+                            onClick={cycleCamera}
+                            className="text-[9px] font-black uppercase tracking-widest text-primary/60 hover:text-primary transition-colors flex items-center gap-2"
+                           >
+                             <RefreshCw size={12} /> Cycle Lens ({activeCameraIndex + 1}/{cameras.length})
+                           </button>
+                         ) : (
+                           <button 
+                            onClick={toggleFacingMode}
+                            className="text-[9px] font-black uppercase tracking-widest text-primary/60 hover:text-primary transition-colors flex items-center gap-2"
+                           >
+                             <RefreshCw size={12} /> Flip to {facingMode === "environment" ? "Front" : "Back"}
+                           </button>
+                         )}
+                       </div>
+                     </div>
                 </div>
               )}
 
