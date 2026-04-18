@@ -1,10 +1,11 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { localDb, User, AppRole } from "@/lib/db";
-import { supabase } from "@/integrations/supabase/client";
+import { db, seedDatabase } from "@/lib/dexie";
 
 interface AuthContextType {
   user: User | null;
   role: AppRole | null;
+  pharmacyId: string | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -15,70 +16,81 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
+  const [pharmacyId, setPharmacyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const initialHandled = useRef(false);
 
   useEffect(() => {
-    // Sync with Supabase Auth session
-    const syncSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        // Map Supabase user to our App User structure
-        const profile = await localDb.auth.getProfile(session.user.id);
-        if (profile) {
-            setUser(profile);
-            setRole(profile.role);
+    const initAuth = async () => {
+      try {
+        // 1. Ensure Super Admin exists locally
+        await seedDatabase();
+
+        // 2. Check for existing local session
+        const sessionUser = await localDb.auth.getSession();
+        if (sessionUser) {
+          console.log("[Auth] Restoring local session for:", sessionUser.email);
+          applyUser(sessionUser);
+        } else {
+          applyUser(null);
         }
+      } catch (err) {
+        console.error("[Auth] Initialization error:", err);
+        applyUser(null);
       }
-      setLoading(false);
     };
 
-    syncSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        const profile = await localDb.auth.getProfile(session.user.id);
-        if (profile) {
-            setUser(profile);
-            setRole(profile.role);
-        }
-      } else {
-        setUser(null);
-        setRole(null);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    initAuth();
   }, []);
 
+  const applyUser = (u: User | null) => {
+    setUser(u);
+    setRole(u?.role ?? null);
+    setPharmacyId(u?.pharmacy_id ?? null);
+    setLoading(false);
+    initialHandled.current = true;
+  };
+
   const signIn = async (email: string, password: string) => {
-    // Try Supabase Auth first
-    const { data, error: sbError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-    });
-
-    if (sbError) return { error: sbError };
-
-    if (data.user) {
-        const profile = await localDb.auth.getProfile(data.user.id);
-        if (profile) {
-            setUser(profile);
-            setRole(profile.role);
-        }
-    }
+    console.log("[Auth] Attempting local sign-in for:", email);
     
-    return { error: null };
+    try {
+      // Find user in local Dexie database
+      const foundUser = await db.users.where("email").equalsIgnoreCase(email).first();
+      
+      if (!foundUser) {
+        return { error: new Error("Invalid credentials") };
+      }
+
+      // Basic password check (for local DB, we can keep it simple first)
+      if (foundUser.password !== password) {
+        return { error: new Error("Invalid credentials") };
+      }
+
+      if (!foundUser.is_active) {
+        return { error: new Error("Account is suspended") };
+      }
+
+      // Store in localStorage for persistence
+      localStorage.setItem("lumiaxy_session", JSON.stringify(foundUser));
+      applyUser(foundUser as User);
+      
+      return { error: null };
+    } catch (err: any) {
+      console.error("[Auth] Sign-in error:", err);
+      return { error: err };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await localDb.auth.signOut();
     setUser(null);
     setRole(null);
+    setPharmacyId(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, role, pharmacyId, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

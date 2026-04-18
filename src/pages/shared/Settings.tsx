@@ -157,11 +157,12 @@ export default function Settings() {
                     <div className="relative">
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
                       <Input 
-                        className="pl-12 h-12 rounded-xl bg-card dark:bg-white/5 border-border dark:border-white/10 text-foreground dark:text-white font-bold transition-all focus:bg-white/10"
+                        disabled
+                        className="pl-12 h-12 rounded-xl bg-card dark:bg-white/5 border-border dark:border-white/10 text-foreground dark:text-white/40 font-bold transition-all cursor-not-allowed opacity-60"
                         value={profile.email}
-                        onChange={e => setProfile({...profile, email: e.target.value})}
                       />
                     </div>
+                    <p className="text-[9px] text-primary/60 font-medium px-1 italic">Email changes require Super Admin approval</p>
                   </div>
                 </div>
 

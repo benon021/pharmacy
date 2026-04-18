@@ -70,15 +70,15 @@ export default function AuditLogs() {
 
   return (
     <div className="space-y-10 animate-fade-in pb-32">
-      {/* Forensic Header */}
+      {/* Audit Header */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2 text-primary font-black text-xs uppercase tracking-[0.4em] mb-1 italic">
-          <Fingerprint className="h-4 w-4" /> Professional Forensic Ledger
+          <Shield className="h-4 w-4" /> System Audit Logs
         </div>
         <h1 className="text-4xl xl:text-6xl font-black tracking-tighter text-foreground dark:text-white italic leading-none">
-          Operational <span className="text-primary not-italic tracking-normal">Audit</span>
+          Operational <span className="text-primary not-italic tracking-normal">Activity</span>
         </h1>
-        <p className="text-muted-foreground text-lg max-w-2xl">Tamper-evident record of all system state transitions and administrative authorizations.</p>
+        <p className="text-muted-foreground text-lg max-w-2xl">Secure record of all system events and administrative actions.</p>
       </div>
 
       {/* Analytics Pulse Row */}
@@ -90,8 +90,8 @@ export default function AuditLogs() {
                     <BarIcon className="h-6 w-6" />
                   </div>
                   <div className="space-y-0.5">
-                     <h2 className="text-xl font-black italic text-white uppercase tracking-tighter">Activity Frequency</h2>
-                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">7-Day Meta-Pulse</p>
+                     <h2 className="text-xl font-black italic text-white uppercase tracking-tighter">Event Frequency</h2>
+                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">7-Day Activity Trend</p>
                   </div>
                </div>
                <Badge className="bg-primary/10 text-primary border-primary/20 text-[9px] font-black uppercase tracking-widest px-3 italic py-1">Integrity: 100%</Badge>
@@ -149,7 +149,7 @@ export default function AuditLogs() {
         <div className="relative group flex-1">
           <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-all duration-500" />
           <Input
-            placeholder="Search forensic activity..."
+            placeholder="Search system activity..."
             className="pl-14 h-16 rounded-[2rem] bg-white/[0.02] border-white/5 text-base transition-all focus:bg-white/[0.05] focus:border-primary/20 italic font-medium placeholder:text-white/20"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -178,10 +178,10 @@ export default function AuditLogs() {
         <Table>
           <TableHeader>
             <TableRow className="bg-white/[0.03] hover:bg-white/[0.03] border-white/5 pointer-events-none">
-              <TableHead className="py-8 font-black text-[10px] uppercase tracking-[0.3em] text-muted-foreground px-10 w-[240px] italic">Temporal Signature</TableHead>
-              <TableHead className="py-8 font-black text-[10px] uppercase tracking-[0.3em] text-muted-foreground w-[200px] italic">Operational Actor</TableHead>
-              <TableHead className="py-8 font-black text-[10px] uppercase tracking-[0.3em] text-muted-foreground w-[150px] italic">Module Matrix</TableHead>
-              <TableHead className="py-8 font-black text-[10px] uppercase tracking-[0.3em] text-muted-foreground px-10 italic">Forensic Narrative</TableHead>
+              <TableHead className="py-8 font-black text-[10px] uppercase tracking-[0.3em] text-muted-foreground px-10 w-[240px] italic">Activity Timestamp</TableHead>
+              <TableHead className="py-8 font-black text-[10px] uppercase tracking-[0.3em] text-muted-foreground w-[200px] italic">Authorized User</TableHead>
+              <TableHead className="py-8 font-black text-[10px] uppercase tracking-[0.3em] text-muted-foreground w-[150px] italic">System Module</TableHead>
+              <TableHead className="py-8 font-black text-[10px] uppercase tracking-[0.3em] text-muted-foreground px-10 italic">Event Description</TableHead>
               <TableHead className="py-8 w-[100px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -191,7 +191,7 @@ export default function AuditLogs() {
                 <TableCell colSpan={5} className="text-center py-32 text-muted-foreground">
                   <div className="flex flex-col items-center gap-6">
                     <History className="h-16 w-16 opacity-[0.05] animate-pulse" />
-                    <p className="text-xs font-black uppercase tracking-[0.4em] italic">No forensic data found on this frequency</p>
+                    <p className="text-xs font-black uppercase tracking-[0.4em] italic">No activity logs found</p>
                   </div>
                 </TableCell>
               </TableRow>

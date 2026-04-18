@@ -25,8 +25,18 @@ export default function LoginPage() {
     if (error) {
       setError(error.message);
     } else {
-      toast.success("Identity Verified. Welcome back.");
-      navigate("/");
+      toast.success("Login Successful. Welcome back.");
+      
+      // Role-aware redirection
+      const userStr = localStorage.getItem("lumiaxy_session");
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        if (user.role === 'super_admin') navigate("/super-admin");
+        else if (user.role === 'admin') navigate("/admin");
+        else navigate("/seller");
+      } else {
+        navigate("/");
+      }
     }
   };
 
@@ -52,10 +62,11 @@ export default function LoginPage() {
             <CardHeader className="p-8 pb-4">
               <div className="flex items-center gap-2 mb-2">
                 <ShieldCheck className="h-5 w-5 text-primary" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-primary/60 italic">Encrypted Local Session</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-primary/60 italic">Secure Local Session</span>
               </div>
               <CardTitle className="text-3xl font-bold text-foreground dark:text-white tracking-tight">Secure Login</CardTitle>
               <CardDescription className="text-muted-foreground font-medium pt-1">Enter your credentials to access the system</CardDescription>
+              <p className="text-xs text-red-500 mt-2">Key check: {import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.substring(0, 15)}...</p>
             </CardHeader>
             <CardContent className="p-8 pt-4">
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -116,13 +127,13 @@ export default function LoginPage() {
         <div className="mt-12 flex flex-col items-center gap-4 animate-fade-in" style={{ animationDelay: '0.5s' }}>
           <div className="flex items-center gap-6">
             <div className="h-px w-12 bg-white/10" />
-            <p className="text-[10px] text-foreground dark:text-white/20 font-bold uppercase tracking-[0.4em]">Lumiaxy Enterprise Core</p>
+            <p className="text-[10px] text-foreground dark:text-white/20 font-bold uppercase tracking-[0.4em]">Lumiaxy Enterprise</p>
             <div className="h-px w-12 bg-white/10" />
           </div>
           <div className="p-4 rounded-2xl border border-border dark:border-white/5 bg-muted dark:bg-white/[0.02] backdrop-blur-md">
              <p className="text-[11px] text-muted-foreground/60 text-center leading-relaxed">
-              Secured under the <span className="text-foreground dark:text-white/60">Lumiaxy OS</span> enterprise defense protocols.<br/>
-              © 2026 Lumiaxy. All session data encrypted and stored locally.
+              Secured by <span className="text-foreground dark:text-white/60">Lumiaxy OS</span> enterprise security.<br/>
+              © 2026 Lumiaxy. All data is encrypted and stored locally.
              </p>
           </div>
         </div>

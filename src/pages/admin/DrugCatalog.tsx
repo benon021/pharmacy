@@ -19,10 +19,14 @@ import * as XLSX from "xlsx";
 import { 
   ShieldCheck, FileUp, Activity, Plus, Search, Filter, 
   Pill, AlertTriangle, AlertCircle, PackagePlus, Edit, 
-  Loader2, Barcode, Hash, CalendarDays, Package 
+  Loader2, Barcode, Hash, CalendarDays, Package, QrCode, ShieldAlert
 } from "lucide-react";
 import EntityIntelligenceModal from "@/components/EntityIntelligenceModal";
 import { cn } from "@/lib/utils";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import ScannerHubModal from "@/components/ScannerHubModal";
+import { supabase } from "@/lib/supabase";
+
 
 const emptyDrug = {
   name: "", 
@@ -86,28 +90,30 @@ const STRENGTH_UNITS = [
 ];
 
 export default function DrugCatalog() {
-  const [drugs, setDrugs] = useState<Drug[]>([]);
-  const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
+  const queryClient = useQueryClient();
+
+  const { data: drugs = [], isLoading, refetch } = useQuery({
+    queryKey: ["drugs"],
+    queryFn: () => localDb.drugs.getAll(),
+    staleTime: 30000, // 30 seconds
+  });
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDrug, setEditingDrug] = useState<Drug | null>(null);
-  const [form, setForm] = useState(emptyDrug);
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [saving, setSaving] = useState(false);
   const [barcodeBuffer, setBarcodeBuffer] = useState("");
   const [lastCharTime, setLastCharTime] = useState(0);
-
-  // Intelligence / Restock
+  const [form, setForm] = useState(emptyDrug);
   const [intelOpen, setIntelOpen] = useState(false);
   const [intelData, setIntelData] = useState<any>(null);
-  const [intelTab, setIntelTab] = useState<"intelligence" | "restock" | "edit" | "audit">("intelligence");
-
-  const fetchDrugs = async () => {
-    const data = await localDb.drugs.getAll();
-    setDrugs(data);
-  };
+  const [intelTab, setIntelTab] = useState<any>("intelligence");
+  const [scannerModalOpen, setScannerModalOpen] = useState(false);
+  const [sessionId] = useState(() => crypto.randomUUID());
 
   useEffect(() => {
-    fetchDrugs();
+
 
     const handleBarcodeInDialog = (e: KeyboardEvent) => {
       if (!dialogOpen) return;
@@ -202,10 +208,11 @@ export default function DrugCatalog() {
         }
 
         toast.success(`Import complete: ${importedCount} new items, ${updatedCount} updated.`);
-        await fetchDrugs();
+        queryClient.invalidateQueries({ queryKey: ["drugs"] });
       } catch (err) {
         toast.error("Failed to parse Excel file.");
       }
+
     };
     reader.readAsBinaryString(file);
     e.target.value = "";
@@ -264,6 +271,17 @@ export default function DrugCatalog() {
     toast.info("Generated Barcode: " + code);
   };
 
+  const handleRemoteScan = (barcode: string) => {
+    setForm(prev => ({ ...prev, barcode }));
+    toast.success("Barcode Captured from Phone Scanner", { duration: 1500 });
+    // Ack back to phone
+    supabase.channel(`scanner-session:${sessionId}`).send({
+      type: "broadcast",
+      event: "SCAN_ACK",
+      payload: { product: { name: barcode, price: "Linked" } }
+    });
+  };
+
   const handleSave = async () => {
     if (!form.name || !form.price) {
       toast.error("Brand/Commercial Name and Price are mandatory");
@@ -293,8 +311,9 @@ export default function DrugCatalog() {
 
     setSaving(false);
     setDialogOpen(false);
-    await fetchDrugs();
+    queryClient.invalidateQueries({ queryKey: ["drugs"] });
   };
+
 
   return (
     <div className="space-y-8 animate-fade-in pb-10">
@@ -368,11 +387,18 @@ export default function DrugCatalog() {
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-32 text-muted-foreground">
                   <div className="flex flex-col items-center gap-4">
-                    <Package className="h-16 w-16 opacity-5 animate-pulse" />
-                    <p className="font-bold uppercase tracking-[0.2em] text-[10px]">Zero matches across forensic database</p>
+                    {isLoading ? (
+                      <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                    ) : (
+                      <Package className="h-16 w-16 opacity-5 animate-pulse" />
+                    )}
+                    <p className="font-bold uppercase tracking-[0.2em] text-[10px]">
+                      {isLoading ? "Consulting Global Ledger..." : "Zero matches across forensic database"}
+                    </p>
                   </div>
                 </TableCell>
               </TableRow>
+
             ) : filtered.map((drug, i) => {
               const isExpired = drug.expiry_date && new Date(drug.expiry_date) < new Date();
               const isFinished = drug.stock <= 0;
@@ -528,7 +554,12 @@ export default function DrugCatalog() {
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex justify-between">
                     <span>Barcode / QR</span>
-                    <button onClick={generateBarcode} className="text-primary hover:underline lowercase text-[9px] tracking-normal">Generate Random</button>
+                    <div className="flex gap-2">
+                       <button onClick={() => setScannerModalOpen(true)} className="text-primary hover:underline lowercase text-[9px] tracking-normal flex items-center gap-1">
+                          <QrCode size={10} /> Link Phone
+                       </button>
+                       <button onClick={generateBarcode} className="text-muted-foreground hover:underline lowercase text-[9px] tracking-normal">Generate Random</button>
+                    </div>
                   </Label>
                   <div className="relative">
                     <Barcode className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -761,6 +792,12 @@ export default function DrugCatalog() {
         type="drug"
         data={intelData}
         initialTab={intelTab}
+      />
+      <ScannerHubModal 
+        open={scannerModalOpen} 
+        onClose={() => setScannerModalOpen(false)} 
+        onScan={handleRemoteScan}
+        title="Drug Registration Scanner"
       />
     </div>
   );

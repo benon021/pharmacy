@@ -12,6 +12,8 @@ import {
 } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+
 
 const COLORS = ["#10b981", "#6366f1", "#f59e0b", "#ef4444", "#8b5cf6"];
 
@@ -26,13 +28,15 @@ export default function AdminReports() {
   const [projections, setProjections] = useState({ next30Days: 0, growth: 0 });
   const [profitStats, setProfitStats] = useState({ revenue: 0, cost: 0, expenses: 0, netProfit: 0, margin: 0 });
 
+  const { data: allSales = [] } = useQuery({ queryKey: ["sales-detailed"], queryFn: () => localDb.sales.getDetailed() });
+  const { data: allRawSales = [] } = useQuery({ queryKey: ["sales"], queryFn: () => localDb.sales.getAll() });
+  const { data: drugs = [] } = useQuery({ queryKey: ["drugs"], queryFn: () => localDb.drugs.getAll() });
+  const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: () => localDb.auth.getAll() });
+  const { data: expenses = [] } = useQuery({ queryKey: ["expenses"], queryFn: () => localDb.expenses.getAll() });
+
   useEffect(() => {
-    const fetchReports = async () => {
-      const allSales = await localDb.sales.getDetailed();
-      const allRawSales = await localDb.sales.getAll();
-      const drugs = await localDb.drugs.getAll();
-      const users = await localDb.auth.getAll(); 
-      const expenses = await localDb.expenses.getAll();
+    const calculateReports = () => {
+
 
     // Filtering based on timeRange
     const now = new Date();
@@ -152,8 +156,9 @@ export default function AdminReports() {
       setProfitStats({ revenue: totalRevenue, cost: totalCost, expenses: totalExpenses, netProfit, margin: Math.round(margin) });
       setProjections({ next30Days: Math.round((allRawSales.reduce((sum, s) => sum + Number(s.total_amount), 0) / 30 || 0) * 30 * 1.15), growth: 15 });
     };
-    fetchReports();
-  }, [timeRange]);
+    calculateReports();
+  }, [timeRange, allSales, allRawSales, drugs, users, expenses]);
+
 
   return (
     <div className="space-y-10 animate-fade-in pb-32">

@@ -7,18 +7,17 @@ import { Badge } from "@/components/ui/badge";
 import { ShoppingBag, Calendar, User, Search, Filter, ArrowUpRight, ArrowRight, ShoppingCart } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+
 
 export default function AdminSales() {
-  const [sales, setSales] = useState<any[]>([]);
   const [search, setSearch] = useState("");
+  const { data: sales = [], isLoading } = useQuery({
+    queryKey: ["sales"],
+    queryFn: () => localDb.sales.getDetailed(),
+    staleTime: 30000,
+  });
 
-  useEffect(() => {
-    const fetchSales = async () => {
-      const data = await localDb.sales.getDetailed();
-      setSales(data);
-    };
-    fetchSales();
-  }, []);
 
   const filteredSales = sales.filter(s => 
     s.customer_name?.toLowerCase().includes(search.toLowerCase()) ||

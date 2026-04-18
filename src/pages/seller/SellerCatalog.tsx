@@ -7,27 +7,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, AlertTriangle, Package, Pill, Filter, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+
 
 export default function SellerCatalog() {
-  const [drugs, setDrugs] = useState<any[]>([]);
+  const { data: drugs = [] } = useQuery({
+    queryKey: ["drugs"],
+    queryFn: () => localDb.drugs.getAll(),
+    staleTime: 30000,
+  });
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [intelOpen, setIntelOpen] = useState(false);
   const [intelData, setIntelData] = useState<any>(null);
 
-  useEffect(() => {
-    const fetchDrugs = async () => {
-      const allDrugs = await localDb.drugs.getAll();
-      setDrugs(allDrugs.filter(d => d.is_active));
-    };
-    fetchDrugs();
-  }, []);
 
-  const filtered = drugs.filter(d => {
-    const matchSearch = d.name.toLowerCase().includes(search.toLowerCase()) || (d.generic_name?.toLowerCase().includes(search.toLowerCase()));
+  const filtered = (drugs || []).filter(d => {
+    if (!d.is_active) return false;
+    const matchSearch = (d.name || "").toLowerCase().includes(search.toLowerCase()) || (d.generic_name || "").toLowerCase().includes(search.toLowerCase());
     const matchCat = category === "all" || d.category === category;
     return matchSearch && matchCat;
   });
+
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -136,16 +137,17 @@ export default function SellerCatalog() {
                   <div className="inline-flex flex-col items-end">
                     <div className={cn(
                       "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black tracking-tighter",
-                      d.stock <= d.low_stock_threshold 
+                      d.stock <= (d.reorder_level || 10) 
                         ? "bg-red-500/10 text-red-500 border border-red-500/20" 
                         : "bg-green-500/10 text-green-500 border border-green-500/20"
                     )}>
                       {d.stock} <span className="opacity-50 text-[10px]">{d.unit}</span>
-                      {d.stock <= d.low_stock_threshold && <AlertTriangle className="h-3 w-3 animate-pulse" />}
+                      {d.stock <= (d.reorder_level || 10) && <AlertTriangle className="h-3 w-3 animate-pulse" />}
                     </div>
-                    {d.stock <= d.low_stock_threshold && (
+                    {d.stock <= (d.reorder_level || 10) && (
                       <p className="text-[10px] text-red-400 font-bold uppercase mt-1 tracking-tight">Low Allocation</p>
                     )}
+
                   </div>
                 </TableCell>
               </TableRow>

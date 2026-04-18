@@ -4,13 +4,20 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Search, Plus, Minus, ShoppingCart, Loader2, Trash2, Pill, CreditCard, Banknote, Smartphone, CheckCircle, AlertCircle, FileUp, ShieldAlert, Receipt, Share2, Database, RefreshCw, UserCircle } from "lucide-react";
+import { 
+  Search, Plus, Minus, ShoppingCart, Loader2, Trash2, Pill, CreditCard, Banknote, 
+  Smartphone, CheckCircle, AlertCircle, FileUp, ShieldAlert, Receipt, Share2, 
+  Database, RefreshCw, UserCircle, QrCode, Info 
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ReceiptModal from "@/components/ReceiptModal";
 import EntityIntelligenceModal, { IntelligenceType } from "@/components/EntityIntelligenceModal";
-import { Info } from "lucide-react";
+import ScannerHubModal from "@/components/ScannerHubModal";
+import { supabase } from "@/lib/supabase";
+
 
 interface CartItem {
   drug_id: string;
@@ -26,7 +33,7 @@ interface CartItem {
 
 export default function NewSale() {
   const { user } = useAuth();
-  const [drugs, setDrugs] = useState<Drug[]>([]);
+  // drugs are fetched via useQuery below
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
@@ -59,6 +66,8 @@ export default function NewSale() {
   // Receipt state
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [receiptData, setReceiptData] = useState<any>(null);
+  const [scannerModalOpen, setScannerModalOpen] = useState(false);
+  const [sessionId] = useState(() => crypto.randomUUID());
   const [barcodeBuffer, setBarcodeBuffer] = useState("");
   const [lastCharTime, setLastCharTime] = useState(0);
 
@@ -83,6 +92,39 @@ export default function NewSale() {
     } catch (e) { console.error("Audio beep failed", e); }
   };
 
+  // Realtime Scanner Bridge
+  useEffect(() => {
+    const channel = supabase.channel(`scanner-session:${sessionId}`);
+    
+    // Broadcast cart updates to the phone
+    channel.send({
+      type: "broadcast",
+      event: "CART_UPDATE",
+      payload: { 
+        items: cart.map(i => ({ name: i.name, price: i.price, quantity: i.quantity })) 
+      }
+    });
+
+    channel.subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [cart, sessionId]);
+
+  const handleRemoteScan = (barcode: string) => {
+    const drug = drugs.find(d => d.barcode === barcode || d.sku === barcode);
+    if (drug) {
+      addToCart(drug);
+      playBeep();
+      // Ack back to phone
+      supabase.channel(`scanner-session:${sessionId}`).send({
+        type: "broadcast",
+        event: "SCAN_ACK",
+        payload: { product: { name: drug.name, price: drug.price } }
+      });
+    } else {
+      toast.error(`Drug with barcode ${barcode} not found`, { icon: <ShieldAlert className="h-4 w-4" /> });
+    }
+  };
+
   const playClick = () => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -105,14 +147,14 @@ export default function NewSale() {
     return new Date(expiryDate) < new Date();
   };
 
-  const refreshDrugs = async () => {
-    const data = await localDb.drugs.getAll();
-    setDrugs(data.filter(d => d.is_active));
-  };
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    refreshDrugs();
-  }, []);
+  const { data: drugs = [], isLoading, refetch } = useQuery({
+    queryKey: ["drugs"],
+    queryFn: () => localDb.drugs.getAll(),
+    staleTime: 30000,
+  });
+
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -153,10 +195,14 @@ export default function NewSale() {
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
   }, [barcodeBuffer, lastCharTime, drugs, user]);
 
-  const filteredDrugs = drugs.filter(d =>
-    d.name.toLowerCase().includes(search.toLowerCase()) ||
-    (d.generic_name?.toLowerCase().includes(search.toLowerCase()))
+  const filteredDrugs = (drugs || []).filter(d =>
+    d.is_active && (
+      (d.name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (d.generic_name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (d.barcode || "").includes(search)
+    )
   );
+
 
   const addToCart = (drug: Drug) => {
     const existing = cart.find(c => c.drug_id === drug.id);
@@ -214,10 +260,35 @@ export default function NewSale() {
       toast.error("Enter a valid Kenyan phone (254... or 07...)");
       return;
     }
+    
     setMpesaStep("waiting");
-    // Simulate real delay
-    setTimeout(() => { toast.info("Prompt sent! Check phone."); }, 1000);
+    
+    try {
+      const response = await fetch("/api/mpesa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phoneNumber: cleanPhone,
+          amount: Math.round(finalTotal)
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        toast.info("Prompt sent! Please enter your PIN on your phone.");
+        // We still let the user manually confirm for now, 
+        // as Safaricom callbacks require a public URL.
+      } else {
+        throw new Error(data.error || "Failed to initiate M-Pesa payment");
+      }
+    } catch (error: any) {
+      console.error("M-Pesa error:", error);
+      toast.error(error.message || "Failed to initiate payment");
+      setMpesaStep("input");
+    }
   };
+
 
   const handleSubmit = async () => {
     if (cart.length === 0) { toast.error("Your cart is empty"); return; }
@@ -296,8 +367,10 @@ export default function NewSale() {
       setMpesaPhone("");
       setMpesaStep("idle");
       setPrescriptionUploaded(false);
-      await refreshDrugs();
+      queryClient.invalidateQueries({ queryKey: ["drugs"] });
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
     }
+
     setSaving(false);
     setSyncing(false);
   };
@@ -307,14 +380,22 @@ export default function NewSale() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-primary font-bold text-sm">
-            <ShoppingCart className="h-4 w-4" /> Retail Core v2.0
+            <ShoppingCart className="h-4 w-4" /> Point of Sale
           </div>
-          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent italic">
-            Precision POS
+          <h1 className="text-4xl font-black tracking-tighter text-white italic uppercase">
+            Checkout
           </h1>
-          <p className="text-muted-foreground">Professional dispensing, tax compliance, and automated stock deductions</p>
+          <p className="text-muted-foreground">Process sales, track inventory, and generate receipts</p>
         </div>
         <div className="flex h-12 items-center gap-4 px-4 rounded-2xl bg-card dark:bg-white/5 border border-border dark:border-white/10">
+           <Button 
+            variant="ghost" 
+            onClick={() => setScannerModalOpen(true)}
+            className="flex items-center gap-2 text-primary font-black uppercase text-[10px] tracking-widest hover:bg-primary/10 rounded-xl"
+           >
+              <QrCode size={16} /> Link Scanner
+           </Button>
+           <div className="h-6 w-px bg-border dark:bg-white/10" />
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-primary glow-primary animate-pulse" />
             <span className="text-[10px] font-black text-foreground dark:text-white uppercase tracking-[0.2em]">{user?.role} Active</span>
@@ -337,11 +418,17 @@ export default function NewSale() {
           </div>
 
           <div className="grid gap-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-            {filteredDrugs.length === 0 ? (
+            {isLoading ? (
+              <div className="text-center py-20 premium-card">
+                <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto mb-4" />
+                <p className="text-muted-foreground uppercase font-black text-[10px] tracking-widest">Loading Inventory...</p>
+              </div>
+            ) : filteredDrugs.length === 0 ? (
               <div className="text-center py-20 premium-card">
                 <Pill className="h-12 w-12 text-muted-foreground/10 mx-auto mb-4" />
                 <p className="text-muted-foreground">Inventory depletion or no matching results</p>
               </div>
+
             ) : filteredDrugs.map((drug, i) => {
               const expired = isExpired(drug.expiry_date);
 
@@ -386,7 +473,8 @@ export default function NewSale() {
                           )}
                         </div>
                         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                          <span className={cn((drug.stock <= drug.low_stock_threshold || expired) && "text-red-500")}>{drug.stock} {drug.unit} REMAINING</span>
+                          <span className={cn((drug.stock <= (drug.reorder_level || 10) || expired) && "text-red-500")}>{drug.stock} {drug.unit} REMAINING</span>
+
                           <span className="opacity-20">•</span>
                           <span>{drug.category}</span>
                         </div>
@@ -512,7 +600,7 @@ export default function NewSale() {
 
               <div className="space-y-4 pt-6 mt-6 border-t border-border dark:border-white/5">
                 <div className="flex items-center justify-between px-1">
-                   <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Client Acquisition</Label>
+                   <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Customer Details</Label>
                    {(customerName || customerPhone) && (
                      <Button 
                        variant="ghost" 
@@ -522,7 +610,7 @@ export default function NewSale() {
                        }}
                        className="h-6 text-[8px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-400 hover:bg-indigo-500/10 gap-1.5"
                      >
-                        <UserCircle className="h-3.5 w-3.5" /> View Client Intelligence
+                        <UserCircle className="h-3.5 w-3.5" /> View Customer History
                      </Button>
                    )}
                 </div>
@@ -642,7 +730,7 @@ export default function NewSale() {
                   )}
                   <div className="flex justify-between items-center bg-white/[0.03] p-6 rounded-3xl border border-border dark:border-white/10 mt-4 shadow-inner">
                     <div>
-                      <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] mb-1">Final Settlement</h3>
+                      <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] mb-1">Total Amount</h3>
                       <div className="flex items-baseline gap-1.5">
                         <span className="text-xs font-bold text-muted-foreground">KES</span>
                         <span key={finalTotal} className="text-4xl font-black tracking-tighter text-foreground dark:text-white glow-primary animate-cart-pulse">{finalTotal.toLocaleString()}</span>
@@ -653,7 +741,7 @@ export default function NewSale() {
                       onClick={handleSubmit}
                       disabled={cart.length === 0 || saving || (paymentMethod === "mpesa" && mpesaStep !== "confirmed")}
                     >
-                      {saving ? <Loader2 className="h-6 w-6 animate-spin" /> : <div className="flex items-center gap-2"><CheckCircle className="h-5 w-5" /> sell</div>}
+                      {saving ? <Loader2 className="h-6 w-6 animate-spin" /> : <div className="flex items-center gap-2"><CheckCircle className="h-5 w-5" /> Complete Sale</div>}
                     </Button>
                   </div>
                 </div>
@@ -673,8 +761,8 @@ export default function NewSale() {
               <RefreshCw className="absolute -top-2 -right-2 h-8 w-8 text-accent animate-spin" />
             </div>
             <div className="space-y-2">
-              <h3 className="text-xl font-black text-foreground dark:text-white italic">Synchronizing Ledger</h3>
-              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Deducting Inventory & Archiving Sale...</p>
+              <h3 className="text-xl font-black text-foreground dark:text-white italic">Processing Sale</h3>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Updating Inventory & Saving Transaction...</p>
             </div>
             <div className="w-full h-1.5 bg-card dark:bg-white/5 rounded-full overflow-hidden">
               <div className="h-full bg-primary animate-sync-bar" />
@@ -694,6 +782,12 @@ export default function NewSale() {
         onClose={() => setIntelOpen(false)}
         type="drug"
         data={intelData}
+      />
+      <ScannerHubModal 
+        open={scannerModalOpen} 
+        onClose={() => setScannerModalOpen(false)} 
+        onScan={handleRemoteScan}
+        title="POS Checkout Scanner"
       />
     </div>
   );

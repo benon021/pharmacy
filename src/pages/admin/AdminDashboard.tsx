@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { Package, ShoppingCart, Users, AlertTriangle, TrendingUp, DollarSign, Activity, CalendarDays, ChevronRight, Pill, ArrowRight, BarChart3, Wallet } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+
 
 interface Stats {
   totalDrugs: number;
@@ -23,36 +25,39 @@ function getDaysUntilExpiry(expiryDate: string | null): number | null {
 }
 
 export default function AdminDashboard() {
+  const { data: drugs = [] } = useQuery({ queryKey: ["drugs"], queryFn: () => localDb.drugs.getAll() });
+  const { data: sales = [] } = useQuery({ queryKey: ["sales"], queryFn: () => localDb.sales.getAll() });
+  const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: () => localDb.auth.getAll() });
+  const { data: expenses = [] } = useQuery({ queryKey: ["expenses"], queryFn: () => localDb.expenses.getAll() });
+  const { data: recentSales = [] } = useQuery({ queryKey: ["recent-sales"], queryFn: () => localDb.sales.getRecent(5) });
+
   const [stats, setStats] = useState<Stats>({
     totalDrugs: 0, lowStockCount: 0, totalSalesToday: 0, totalRevenue: 0, totalSellers: 0, expiringCount: 0, expiredCount: 0
   });
-  const [recentSales, setRecentSales] = useState<Sale[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
   const [inventoryChart, setInventoryChart] = useState<any[]>([]);
   const [lowStockDrugs, setLowStockDrugs] = useState<Drug[]>([]);
   const [expiringDrugs, setExpiringDrugs] = useState<Drug[]>([]);
 
+
   useEffect(() => {
-    const fetchStats = async () => {
+    const calculateStats = () => {
       const today = new Date().toISOString().split("T")[0];
-      const drugs = await localDb.drugs.getAll();
-      const sales = await localDb.sales.getAll();
-      const users = await localDb.auth.getAll();
-      const expenses = await localDb.expenses.getAll();
       
       const todaySales = sales.filter(s => s.created_at.startsWith(today));
-      const lowStock = drugs.filter(d => d.is_active && d.stock <= (d.reorder_level || 10));
-      const expiring = drugs.filter(d => {
+      const activeDrugs = drugs.filter(d => d.is_active);
+      const lowStock = activeDrugs.filter(d => d.stock <= (d.reorder_level || 10));
+      const expiring = activeDrugs.filter(d => {
         const days = getDaysUntilExpiry(d.expiry_date);
-        return d.is_active && days !== null && days <= 90;
+        return days !== null && days <= 90;
       });
-      const expired = drugs.filter(d => {
+      const expired = activeDrugs.filter(d => {
         const days = getDaysUntilExpiry(d.expiry_date);
-        return d.is_active && days !== null && days <= 0;
+        return days !== null && days <= 0;
       });
 
       setStats({
-        totalDrugs: drugs.filter(d => d.is_active).length,
+        totalDrugs: activeDrugs.length,
         lowStockCount: lowStock.length,
         totalSalesToday: todaySales.length,
         totalRevenue: sales.reduce((sum, s) => sum + Number(s.total_amount), 0),
@@ -68,9 +73,6 @@ export default function AdminDashboard() {
         return da - db;
       }).slice(0, 5));
 
-      const recent = await localDb.sales.getRecent(5);
-      setRecentSales(recent);
-
       const last7 = Array.from({ length: 7 }, (_, i) => {
         const d = new Date();
         d.setDate(d.getDate() - (6 - i));
@@ -78,20 +80,21 @@ export default function AdminDashboard() {
       });
 
       const chartD = last7.map(day => ({
-        day: day.slice(8), // Just the DD
+        day: day.slice(8), 
         sales: sales.filter(s => s.created_at.startsWith(day)).reduce((sum, s) => sum + Number(s.total_amount), 0),
         expenses: expenses.filter(e => e.created_at.startsWith(day)).reduce((sum, e) => sum + Number(e.amount), 0),
       }));
       setChartData(chartD);
 
       setInventoryChart([
-        { name: 'Healthy', value: drugs.filter(d => d.stock > (d.reorder_level || 10)).length },
+        { name: 'Healthy', value: drugs.filter(d => d.is_active && d.stock > (d.reorder_level || 10)).length },
         { name: 'Low', value: lowStock.length },
         { name: 'Expired', value: expired.length },
       ]);
     };
-    fetchStats();
-  }, []);
+    calculateStats();
+  }, [drugs, sales, users, expenses]);
+
 
   const statCards = [
     { label: "Revenue", value: `KES ${stats.totalRevenue.toLocaleString()}`, icon: DollarSign, color: "text-primary", glow: "glow-primary" },
@@ -103,14 +106,14 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-8 animate-fade-in">
       <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2 text-primary font-semibold text-sm">
+        <div className="flex items-center gap-2 text-primary font-bold text-sm">
           <Activity className="h-4 w-4" />
-          System Live
+          System Status: Online
         </div>
-        <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent">
-          Admin Control Center
+        <h1 className="text-4xl font-black tracking-tighter text-white italic uppercase">
+          Pharmacy Dashboard
         </h1>
-        <p className="text-muted-foreground">Monitoring pharmacy performance across all sectors</p>
+        <p className="text-muted-foreground font-medium">Overview of store performance and inventory health</p>
       </div>
 
       {/* POS Quick Access */}
@@ -126,9 +129,9 @@ export default function AdminDashboard() {
             <ShoppingCart className="h-10 w-10 text-primary-foreground font-black" />
           </div>
           <div className="text-center md:text-left space-y-1">
-            <h2 className="text-3xl font-black text-foreground dark:text-white italic tracking-tighter">Retail POS Terminal</h2>
+            <h2 className="text-3xl font-black text-foreground dark:text-white italic tracking-tighter">POS Terminal</h2>
             <p className="text-sm font-bold text-primary uppercase tracking-widest flex items-center gap-2 justify-center md:justify-start">
-               Launch Cashier Command Center <ArrowRight className="h-4 w-4" />
+               Launch checkout system <ArrowRight className="h-4 w-4" />
             </p>
           </div>
         </div>
@@ -163,8 +166,8 @@ export default function AdminDashboard() {
                 <CalendarDays className="h-6 w-6 text-red-500" />
               </div>
               <div className="flex-1">
-                <p className="font-bold text-red-400">{stats.expiredCount} Expired Medicine{stats.expiredCount > 1 ? "s" : ""}</p>
-                <p className="text-xs text-red-400/60">Remove from shelves immediately — PPB compliance required</p>
+                <p className="font-bold text-red-400">{stats.expiredCount} Expired Item{stats.expiredCount > 1 ? "s" : ""}</p>
+                <p className="text-xs text-red-400/60">Please remove these from the shelves immediately.</p>
               </div>
               <ChevronRight className="h-5 w-5 text-red-500/40 group-hover:text-red-500 transition-colors" />
             </Link>
@@ -190,7 +193,7 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-bold italic tracking-tighter">Profitability Forensics</h2>
+              <h2 className="text-lg font-bold italic tracking-tighter capitalize">Revenue Analytics</h2>
             </div>
             <div className="flex items-center gap-4">
                <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary uppercase">
@@ -298,7 +301,8 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <p className="text-sm font-bold text-foreground dark:text-white">{drug.name}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Threshold: {drug.low_stock_threshold}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Threshold: {drug.reorder_level}</p>
+
                   </div>
                 </div>
                 <div className="text-right">
