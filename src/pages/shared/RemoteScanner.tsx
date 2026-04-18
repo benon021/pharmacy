@@ -1,303 +1,560 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "@/lib/supabase";
 import { 
-  Camera, SwitchCamera, Maximize2, Minimize2,
-  CheckCircle2, Volume2, VolumeX, Vibrate, VibrateOff,
-  Settings2, Scan,
+  Smartphone, 
+  Settings as SettingsIcon, 
+  History, 
+  ShoppingCart, 
+  CheckCircle2, 
+  AlertCircle,
+  Pill,
+  Zap,
+  Loader2,
+  RefreshCw,
+  Volume2,
+  VolumeX,
+  Vibrate,
+  VibrateOff,
+  Maximize2,
+  X,
+  Stethoscope,
+  ShieldAlert
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
+
+interface ScannedProduct {
+  name: string;
+  price: number;
+  quantity: number;
+}
 
 export default function RemoteScanner() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const [isScanning, setIsScanning] = useState(false);
+  const [isPaired, setIsPaired] = useState(false);
   const [lastScanned, setLastScanned] = useState<any>(null);
+  const [cartPreview, setCartPreview] = useState<ScannedProduct[]>([]);
   const [manualSessionId, setManualSessionId] = useState("");
   const [status, setStatus] = useState<"connecting" | "online" | "offline">("connecting");
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [scanCount, setScanCount] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  
+  // Customization state
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [vibrateEnabled, setVibrateEnabled] = useState(true);
-  const [cameras, setCameras] = useState<{ id: string; label: string }[]>([]);
+  
+  const [cameras, setCameras] = useState<{ id: string, label: string }[]>([]);
   const [activeCameraIndex, setActiveCameraIndex] = useState(0);
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
-  const [flash, setFlash] = useState(false);
-
+  
+  const [debugLog, setDebugLog] = useState<string>("");
+  
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const lastScanTime = useRef(0);
 
-  const playBeep = useCallback(() => {
-    if (!soundEnabled) return;
-    try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.connect(g); g.connect(ctx.destination);
-      o.frequency.setValueAtTime(1800, ctx.currentTime);
-      o.frequency.setValueAtTime(2400, ctx.currentTime + 0.05);
-      g.gain.setValueAtTime(0.25, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
-      o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.12);
-    } catch { }
-  }, [soundEnabled]);
-
-  const vibe = useCallback((p: number | number[]) => {
-    if (vibrateEnabled && navigator.vibrate) navigator.vibrate(p);
-  }, [vibrateEnabled]);
-
-  const onScanFeedback = useCallback(() => {
-    playBeep(); vibe([50, 30, 50]);
-    setFlash(true); setTimeout(() => setFlash(false), 200);
-    setScanCount(c => c + 1);
-  }, [playBeep, vibe]);
-
-  const toggleFs = useCallback(async () => {
-    try {
-      if (!document.fullscreenElement) { await containerRef.current?.requestFullscreen(); setIsFullscreen(true); }
-      else { await document.exitFullscreen(); setIsFullscreen(false); }
-    } catch { }
-  }, []);
-
-  useEffect(() => {
-    const h = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", h);
-    return () => document.removeEventListener("fullscreenchange", h);
-  }, []);
-
-  const getCameras = async () => {
-    try {
-      const d = await Html5Qrcode.getCameras();
-      if (d?.length) setCameras(d.map(x => ({ id: x.id, label: x.label })));
-    } catch { }
+  const log = (msg: string) => {
+    console.log("[Scanner] " + msg);
+    setDebugLog(prev => `${new Date().toLocaleTimeString()} - ${msg}\n${prev}`.slice(0, 1000));
   };
+
+  const triggerPermissionRequest = async () => {
+    log("Manually requesting camera stream...");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      log("Stream acquired. Permissions granted.");
+      stream.getTracks().forEach(track => track.stop());
+      refreshCameras();
+      toast.success("Ready for scanning.");
+    } catch (err: any) {
+      log(`Permission Error: ${err.message}`);
+      toast.error(`Permission denied: ${err.name}`);
+    }
+  };
+
+  const refreshCameras = async () => {
+    try {
+      const devices = await Html5Qrcode.getCameras();
+      if (devices && devices.length > 0) {
+        log(`Lenses found: ${devices.length}`);
+        setCameras(devices.map(d => ({ id: d.id, label: d.label })));
+      }
+    } catch (err) {
+      log("Enumeration blocked by browser security.");
+    }
+  };
+
+  // NOTE: Do NOT call refreshCameras() on mount.
+  // Browsers flag sites as suspicious/dangerous when they call
+  // getUserMedia or enumerateDevices without a user gesture.
+  // Camera enumeration happens after user taps "Initialize Lens"
+  // or "Force Permission Prompt".
 
   useEffect(() => {
     if (!sessionId) return;
-    const ch = supabase.channel(`scanner-session:${sessionId}`);
-    ch.on("broadcast", { event: "SCAN_ACK" }, (p) => {
-        setLastScanned(p.payload.product);
-        onScanFeedback();
-        setTimeout(() => setLastScanned(null), 2500);
+    
+    log(`Connecting to session sync: ${sessionId}`);
+    const channel = supabase.channel(`scanner-session:${sessionId}`);
+    
+    channel
+      .on("broadcast", { event: "CART_UPDATE" }, (payload) => {
+        setCartPreview(payload.payload.items || []);
       })
-      .subscribe((s) => {
-        if (s === "SUBSCRIBED") {
-          ch.send({ type: "broadcast", event: "PAIR_REQUEST", payload: { device: navigator.userAgent } });
+      .on("broadcast", { event: "SCAN_ACK" }, (payload) => {
+        setLastScanned(payload.payload.product);
+        if (vibrateEnabled && window.navigator.vibrate) window.navigator.vibrate(150);
+        if (soundEnabled) {
+          const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3");
+          audio.volume = 0.5;
+          audio.play().catch(() => {});
+        }
+        setTimeout(() => setLastScanned(null), 3000);
+      })
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          channel.send({
+            type: "broadcast",
+            event: "PAIR_REQUEST",
+            payload: { device: navigator.userAgent }
+          });
+          setIsPaired(true);
           setStatus("online");
-        } else if (s === "CLOSED") setStatus("offline");
+        } else if (status === "CLOSED") {
+          setStatus("offline");
+        }
       });
-    return () => { stopScanner(); supabase.removeChannel(ch); };
-  }, [sessionId, onScanFeedback]);
+
+    return () => {
+      stopScanner();
+      supabase.removeChannel(channel);
+    };
+  }, [sessionId, soundEnabled, vibrateEnabled]);
 
   const startScanner = async () => {
-    if (!window.isSecureContext && location.hostname !== "localhost") { toast.error("Needs HTTPS"); return; }
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({ video: true });
-      s.getTracks().forEach(t => t.stop()); await getCameras();
-    } catch (e: any) { toast.error("Camera blocked"); return; }
+    if (!window.isSecureContext && window.location.hostname !== "localhost") {
+      log("Error: Insecure Context (No HTTPS)");
+      toast.error("Camera requires HTTPS connection.");
+      return;
+    }
 
+    log("Initializing Scanner Module...");
     try {
-      const sc = new Html5Qrcode("scan-vp");
-      scannerRef.current = sc;
-      const camId = cameras[activeCameraIndex]?.id;
-      const cfg = { fps: 25, qrbox: { width: 250, height: 150 } };
-      if (camId) await sc.start({ deviceId: { exact: camId } }, cfg, handleScan, () => {});
-      else {
-        try { await sc.start({ facingMode: { exact: facingMode } }, cfg, handleScan, () => {}); }
-        catch { await sc.start({ facingMode }, cfg, handleScan, () => {}); }
+      const scanner = new Html5Qrcode("mobile-scanner-region");
+      scannerRef.current = scanner;
+      
+      const cameraId = cameras[activeCameraIndex]?.id;
+      const config = { fps: 25, qrbox: { width: 280, height: 180 } };
+      
+      if (cameraId) {
+        log(`Starting with specific lens: ${cameraId}`);
+        await scanner.start({ deviceId: { exact: cameraId } }, config, handleScan, () => {});
+      } else {
+        log(`Starting with facingMode: ${facingMode}`);
+        // Aggressive mode for mobile stability
+        const mode = facingMode === "environment" ? { facingMode: { exact: "environment" } } : { facingMode: "user" };
+        try {
+          await scanner.start(mode, config, handleScan, () => {});
+        } catch (e) {
+          log("Exact mode failed, falling back to loose mode...");
+          await scanner.start({ facingMode }, config, handleScan, () => {});
+        }
       }
+      
       setIsScanning(true);
-      if (!cameras.length) setTimeout(getCameras, 500);
-    } catch { toast.error("Camera failed"); }
+      log("Active Scanning Initiated.");
+      
+      if (cameras.length === 0) {
+        setTimeout(refreshCameras, 500);
+      }
+    } catch (err: any) {
+      log(`Scanner Initialization Failed: ${err.message || err}`);
+      toast.error("Lens Initialization Error. See Diagnostics.");
+    }
+  };
+
+  const toggleFacingMode = async () => {
+    const newMode = facingMode === "environment" ? "user" : "environment";
+    setFacingMode(newMode);
+    
+    if (isScanning) {
+      await stopScanner();
+      setTimeout(startScanner, 300);
+    }
+  };
+
+  const cycleCamera = async () => {
+    if (cameras.length < 2) return toggleFacingMode();
+    
+    const nextIndex = (activeCameraIndex + 1) % cameras.length;
+    setActiveCameraIndex(nextIndex);
+    
+    if (isScanning) {
+      await stopScanner();
+      setTimeout(startScanner, 300);
+    }
   };
 
   const stopScanner = async () => {
-    if (scannerRef.current) { try { await scannerRef.current.stop(); } catch { } setIsScanning(false); }
-  };
-
-  const flipCam = async () => {
-    if (cameras.length > 1) setActiveCameraIndex((activeCameraIndex + 1) % cameras.length);
-    else setFacingMode(f => f === "environment" ? "user" : "environment");
-    if (isScanning) { await stopScanner(); setTimeout(startScanner, 300); }
+    if (scannerRef.current) {
+      log("Shutting down camera stream...");
+      try {
+        await scannerRef.current.stop();
+      } catch (e) {}
+      setIsScanning(false);
+    }
   };
 
   const handleScan = (barcode: string) => {
-    if (Date.now() - lastScanTime.current < 1500) return;
-    lastScanTime.current = Date.now();
-    supabase.channel(`scanner-session:${sessionId}`).send({
-      type: "broadcast", event: "SCAN_RESULT", payload: { barcode }
+    const channel = supabase.channel(`scanner-session:${sessionId}`);
+    channel.send({
+      type: "broadcast",
+      event: "SCAN_RESULT",
+      payload: { barcode }
     });
-    onScanFeedback();
+    if (vibrateEnabled && window.navigator.vibrate) window.navigator.vibrate([40, 40]);
   };
 
-  // ─── PAIRING SCREEN ──────────────────────────────────────
-  if (!sessionId) return (
-    <div ref={containerRef} className="h-[100dvh] bg-black text-white flex flex-col items-center justify-center px-8">
-      <div className="fixed inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
-      
-      <motion.div initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring" }}
-        className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-emerald-400 flex items-center justify-center mb-8 shadow-lg shadow-primary/30"
-      >
-        <Scan className="h-8 w-8 text-black" strokeWidth={2.5} />
-      </motion.div>
+  const handleManualJoin = () => {
+    if (manualSessionId.length > 5) {
+      navigate(`/remote-scanner/${manualSessionId}`);
+    }
+  };
 
-      <motion.h1 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.05 }}
-        className="text-2xl font-bold tracking-tight mb-2">Lumiaxy Bridge</motion.h1>
-      <motion.p initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }}
-        className="text-sm text-white/30 mb-8 text-center">Connect to POS terminal</motion.p>
-
-      <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }}
-        className="w-full max-w-xs space-y-3"
-      >
-        <input
-          className="w-full h-13 bg-white/5 border border-white/10 rounded-xl px-4 font-mono text-center tracking-[0.15em] text-white outline-none focus:border-primary/50 transition-colors placeholder:text-white/10 text-base"
-          placeholder="Session ID"
-          value={manualSessionId}
-          onChange={e => setManualSessionId(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && manualSessionId.length > 5 && navigate(`/remote-scanner/${manualSessionId}`)}
-        />
-        <button
-          onClick={() => manualSessionId.length > 5 && navigate(`/remote-scanner/${manualSessionId}`)}
-          className="w-full h-12 rounded-xl bg-primary text-black font-semibold text-sm active:scale-[0.97] transition-transform"
-        >
-          Connect
-        </button>
-      </motion.div>
-    </div>
-  );
-
-  // ─── SCANNER ──────────────────────────────────────────────
   return (
-    <div ref={containerRef} className={cn("h-[100dvh] bg-black text-white flex flex-col overflow-hidden select-none", isFullscreen && "fixed inset-0 z-[9999]")}>
-      
-      {/* Flash */}
-      <AnimatePresence>
-        {flash && <motion.div initial={{ opacity: 0.5 }} animate={{ opacity: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="fixed inset-0 bg-emerald-400/20 z-[200] pointer-events-none" />}
-      </AnimatePresence>
-
-      {/* ─── STATUS BAR ──────────────────────────────────── */}
-      <div className="flex items-center justify-between px-4 h-11 flex-shrink-0 z-50 bg-black/50 backdrop-blur-md">
-        <div className="flex items-center gap-2">
-          <div className={cn("h-1.5 w-1.5 rounded-full", status === "online" ? "bg-emerald-400" : status === "connecting" ? "bg-amber-400 animate-pulse" : "bg-red-500")} />
-          <span className="text-[11px] text-white/40 font-medium">{sessionId?.slice(0, 8)}</span>
-          {scanCount > 0 && <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-md">{scanCount}</span>}
-        </div>
-        <div className="flex items-center gap-0.5">
-          <button onClick={toggleFs} className="p-2 text-white/25 active:text-white/60">
-            {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-          </button>
-          <button onClick={() => setSettingsOpen(!settingsOpen)} className={cn("p-2 rounded-lg", settingsOpen ? "text-primary" : "text-white/25")}>
-            <Settings2 size={16} />
-          </button>
-        </div>
+    <div className="min-h-screen bg-[#07070a] text-white flex flex-col font-sans overflow-hidden">
+      {/* Background Glow */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        <div className="absolute top-[-20%] left-[-20%] w-[80%] h-[80%] bg-primary/10 rounded-full blur-[120px]" />
       </div>
 
-      {/* ─── SETTINGS ────────────────────────────────────── */}
-      <AnimatePresence>
-        {settingsOpen && (
-          <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden z-40 px-4 pb-2 flex-shrink-0">
-            <div className="flex gap-1.5">
-              {[
-                { on: soundEnabled, toggle: () => setSoundEnabled(!soundEnabled), icon: soundEnabled ? Volume2 : VolumeX, label: "Sound" },
-                { on: vibrateEnabled, toggle: () => { setVibrateEnabled(!vibrateEnabled); if (!vibrateEnabled) vibe(60); }, icon: vibrateEnabled ? Vibrate : VibrateOff, label: "Haptic" },
-              ].map((b, i) => (
-                <button key={i} onClick={b.toggle} className={cn(
-                  "flex-1 h-9 rounded-lg flex items-center justify-center gap-1.5 text-[10px] font-semibold transition-all",
-                  b.on ? "bg-primary/10 text-primary border border-primary/20" : "bg-white/5 text-white/25 border border-transparent"
-                )}>
-                  <b.icon size={13} /> {b.label}
-                </button>
-              ))}
-              <button onClick={flipCam} className="flex-1 h-9 rounded-lg flex items-center justify-center gap-1.5 text-[10px] font-semibold bg-white/5 text-white/30 active:bg-white/10">
-                <SwitchCamera size={13} /> Flip
-              </button>
-            </div>
+      {/* Header */}
+      <header className="p-6 bg-black/40 backdrop-blur-3xl border-b border-white/5 flex items-center justify-between sticky top-0 z-50">
+        <div className="flex items-center gap-3">
+          <motion.div 
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="h-10 w-10 rounded-xl bg-gradient-to-tr from-primary to-orange-600 flex items-center justify-center text-black shadow-lg shadow-primary/20"
+          >
+            <Smartphone size={20} />
           </motion.div>
-        )}
-      </AnimatePresence>
+          <div>
+            <h1 className="text-sm font-black uppercase tracking-tighter italic leading-none">Lumiaxy <span className="text-primary not-italic">Bridge</span></h1>
+            <p className="text-[9px] font-black uppercase tracking-widest text-primary/60 mt-0.5">Session: {sessionId?.slice(0, 8) || "Inactive"}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+           <button 
+            onClick={() => setSettingsOpen(!settingsOpen)}
+            className={cn("p-2.5 rounded-xl border transition-all", settingsOpen ? "bg-primary border-primary text-black" : "bg-white/5 border-white/10 text-muted-foreground")}
+           >
+              <SettingsIcon size={18} />
+           </button>
+           <div className={cn(
+            "px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all",
+            status === "online" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]" : 
+            status === "connecting" ? "bg-primary/10 text-primary animate-pulse border-primary/20" :
+            "bg-red-500/20 text-red-500 border-red-500/30"
+          )}>
+            {status}
+          </div>
+        </div>
+      </header>
 
-      {/* ─── VIEWPORT ────────────────────────────────────── */}
-      <div className="flex-1 relative min-h-0">
-        <div id="scan-vp" className="absolute inset-0 w-full h-full [&>video]:object-cover [&>video]:w-full [&>video]:h-full bg-black" />
-
-        {/* Idle */}
-        {!isScanning && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[2px] z-20 gap-5">
-            <motion.button
-              initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} whileTap={{ scale: 0.9 }}
-              onClick={startScanner}
-              className="h-20 w-20 rounded-full bg-white flex items-center justify-center shadow-2xl shadow-white/10"
+      <main className="flex-1 p-6 space-y-6 overflow-y-auto custom-scrollbar pb-32">
+        <AnimatePresence>
+          {settingsOpen && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="bg-white/[0.03] border border-white/10 rounded-3xl p-6 overflow-hidden grid grid-cols-2 gap-4"
             >
-              <Camera className="h-8 w-8 text-black" strokeWidth={2} />
-            </motion.button>
-            <p className="text-[12px] text-white/30 font-medium">Tap to scan</p>
+               <button 
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                className={cn("h-14 rounded-2xl flex flex-col items-center justify-center gap-1.5 border transition-all", soundEnabled ? "bg-primary/10 border-primary/40 text-primary" : "bg-white/5 border-white/5 text-muted-foreground")}
+               >
+                  {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                  <span className="text-[8px] font-black uppercase tracking-widest">Sound {soundEnabled ? "ON" : "OFF"}</span>
+               </button>
+               <button 
+                onClick={() => setVibrateEnabled(!vibrateEnabled)}
+                className={cn("h-14 rounded-2xl flex flex-col items-center justify-center gap-1.5 border transition-all", vibrateEnabled ? "bg-primary/10 border-primary/40 text-primary" : "bg-white/5 border-white/5 text-muted-foreground")}
+               >
+                  {vibrateEnabled ? <Vibrate size={16} /> : <VibrateOff size={16} />}
+                  <span className="text-[8px] font-black uppercase tracking-widest">Haptics {vibrateEnabled ? "ON" : "OFF"}</span>
+               </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {!sessionId && (
+           <motion.div 
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 space-y-6 text-center"
+           >
+              <div className="h-20 w-20 rounded-[2rem] bg-card border border-white/5 flex items-center justify-center text-primary mx-auto shadow-2xl">
+                <Maximize2 size={32} />
+              </div>
+              <div className="space-y-2">
+                 <h2 className="text-xl font-black italic tracking-tighter uppercase">Connect Bridge</h2>
+                 <p className="text-xs text-muted-foreground max-w-[200px] mx-auto leading-relaxed">Enter the platform session ID to begin pharmaceutical synchronization.</p>
+              </div>
+              <div className="space-y-4 pt-4">
+                 <input 
+                  className="w-full h-14 bg-black/50 border border-white/10 rounded-2xl px-6 font-mono text-center tracking-[0.2em] text-white outline-none focus:border-primary/50 transition-colors placeholder:text-muted-foreground/20"
+                  placeholder="ID TOKEN"
+                  value={manualSessionId}
+                  onChange={e => setManualSessionId(e.target.value)}
+                 />
+                 <Button 
+                  onClick={handleManualJoin}
+                  className="w-full h-14 rounded-[1.5rem] bg-primary text-black font-black uppercase tracking-widest text-[10px] shadow-xl shadow-primary/20"
+                 >
+                    Establish Handshake
+                 </Button>
+              </div>
+           </motion.div>
+        )}
+
+        {/* Scanner Viewport */}
+        {sessionId && (
+          <div className="space-y-6">
+            {!window.isSecureContext && window.location.hostname !== "localhost" && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-8 rounded-[2.5rem] bg-gradient-to-br from-amber-500/20 to-red-500/10 border border-amber-500/30 space-y-6 shadow-2xl"
+              >
+                <div className="flex flex-col items-center text-center gap-4">
+                  <div className="h-20 w-20 rounded-[2rem] bg-amber-500 text-black flex items-center justify-center shadow-xl shadow-amber-500/20">
+                    <ShieldAlert size={40} />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-black uppercase tracking-tighter italic">Browser Security Block</h3>
+                    <p className="text-[11px] text-amber-200/80 leading-relaxed font-bold uppercase tracking-widest">
+                      Camera requires a SECURE (HTTPS) connection to function on mobile devices.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-4 border-t border-white/5">
+                   <div className="space-y-1">
+                      <p className="text-[9px] font-black text-primary uppercase">✅ Solution 1: Production</p>
+                      <p className="text-[10px] text-white/50 leading-relaxed">Deploy to Vercel/Production. HTTPS is automatically provided.</p>
+                   </div>
+                   <div className="space-y-1">
+                      <p className="text-[9px] font-black text-primary uppercase">✅ Solution 2: Local Proxy</p>
+                      <p className="text-[10px] text-white/50 leading-relaxed">Use <code className="bg-black/40 px-1.5 py-0.5 rounded text-amber-500">ngrok</code> to create a secure tunnel to your local server.</p>
+                   </div>
+                </div>
+
+                <Button 
+                  onClick={() => window.open('https://web.dev/media-device-permissions/', '_blank')}
+                  className="w-full h-14 rounded-2xl bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest text-[9px] hover:bg-white/10"
+                >
+                  View Permission Guide
+                </Button>
+              </motion.div>
+            )}
+            
+            <motion.div 
+              layout
+              className="relative aspect-video md:aspect-square rounded-[2.5rem] bg-black border border-white/10 overflow-hidden shadow-2xl spatial-shadow"
+            >
+              <div id="mobile-scanner-region" className="w-full h-full grayscale-[0.5] contrast-[1.2]" />
+              
+              {!isScanning && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-md space-y-4">
+                   <motion.div 
+                    animate={{ scale: [1, 1.1, 1] }} 
+                    transition={{ repeat: Infinity, duration: 2 }}
+                    className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center text-primary border border-primary/20"
+                   >
+                      <Zap size={40} className="fill-current" />
+                   </motion.div>
+                     <div className="flex flex-col items-center gap-4">
+                       <Button 
+                        onClick={startScanner}
+                        className="h-14 px-10 rounded-2xl bg-white text-black font-black uppercase tracking-[0.2em] text-[10px] hover:bg-primary transition-colors focus:ring-0 focus:outline-none"
+                       >
+                         Initialize Lens
+                       </Button>
+                       
+                       <div className="flex items-center gap-6">
+                         {cameras.length > 1 ? (
+                           <button 
+                            onClick={cycleCamera}
+                            className="text-[9px] font-black uppercase tracking-widest text-primary/60 hover:text-primary transition-colors flex items-center gap-2"
+                           >
+                             <RefreshCw size={12} /> Cycle Lens ({activeCameraIndex + 1}/{cameras.length})
+                           </button>
+                         ) : (
+                           <button 
+                            onClick={toggleFacingMode}
+                            className="text-[9px] font-black uppercase tracking-widest text-primary/60 hover:text-primary transition-colors flex items-center gap-2"
+                           >
+                             <RefreshCw size={12} /> Flip to {facingMode === "environment" ? "Front" : "Back"}
+                           </button>
+                         )}
+                       </div>
+                     </div>
+                </div>
+              )}
+
+              {isScanning && (
+                <>
+                  {/* Scanning Animation */}
+                  <motion.div 
+                    initial={{ top: "10%" }}
+                    animate={{ top: "90%" }}
+                    transition={{ repeat: Infinity, repeatType: "reverse", duration: 1.5, ease: "easeInOut" }}
+                    className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent z-10 shadow-[0_0_15px_rgba(var(--primary-rgb),0.8)]"
+                  />
+                  
+                  {/* Scanner Overlay UI */}
+                  <div className="absolute inset-0 p-8 flex flex-col justify-between">
+                     <div className="flex justify-between items-start">
+                        <div className="h-10 w-10 border-t-4 border-l-4 border-primary rounded-tl-2xl shadow-[-5px_-5px_15px_rgba(var(--primary-rgb),0.2)]" />
+                        <button 
+                          onClick={stopScanner}
+                          className="px-4 py-2 bg-red-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 shadow-2xl pointer-events-auto hover:bg-red-600 transition-colors"
+                        >
+                          <X size={12} /> Terminate Lens
+                        </button>
+                        <div className="h-10 w-10 border-t-4 border-r-4 border-primary rounded-tr-2xl shadow-[5px_-5px_15px_rgba(var(--primary-rgb),0.2)]" />
+                     </div>
+                     <div className="flex justify-center">
+                        <div className="px-4 py-2 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[8px] font-black uppercase tracking-[0.3em] text-white/40">
+                           Align Medical Barcode Within Frame
+                        </div>
+                     </div>
+                     <div className="flex justify-between">
+                        <div className="h-10 w-10 border-b-4 border-l-4 border-primary rounded-bl-2xl shadow-[-5px_5px_15px_rgba(var(--primary-rgb),0.2)]" />
+                        <div className="h-10 w-10 border-b-4 border-r-4 border-primary rounded-br-2xl shadow-[5px_5px_15px_rgba(var(--primary-rgb),0.2)]" />
+                     </div>
+                  </div>
+                </>
+              )}
+            </motion.div>
+
+            {/* Scan Feedback Overlay */}
+            <AnimatePresence>
+              {lastScanned && (
+                 <motion.div 
+                  initial={{ y: 50, opacity: 0, scale: 0.9 }}
+                  animate={{ y: 0, opacity: 1, scale: 1 }}
+                  exit={{ y: -20, opacity: 0, scale: 0.9 }}
+                  className="bg-emerald-500 border border-emerald-400 rounded-3xl p-6 shadow-2xl shadow-emerald-500/20"
+                 >
+                    <div className="flex items-center gap-5">
+                       <div className="h-12 w-12 rounded-2xl bg-white/20 flex items-center justify-center text-white">
+                          <CheckCircle2 size={28} />
+                       </div>
+                       <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-100/60 leading-none mb-1.5">Successfully Synced</p>
+                          <h3 className="text-xl font-black italic tracking-tighter uppercase leading-tight">{lastScanned.name}</h3>
+                       </div>
+                    </div>
+                 </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Live Cart Preview */}
+            <div className="space-y-4">
+               <div className="flex items-center justify-between px-2">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground flex items-center gap-2">
+                     <ShoppingCart size={14} className="text-primary" /> Active Terminal Cart
+                  </h4>
+                  <Badge className="bg-white/5 text-[9px] font-mono border-white/5 rounded-lg px-2 h-6">{cartPreview.length} items</Badge>
+               </div>
+               
+               <div className="space-y-2.5">
+                  {cartPreview.length === 0 ? (
+                     <div className="py-16 bg-white/[0.02] border border-dashed border-white/5 rounded-[2.5rem] flex flex-col items-center justify-center text-muted-foreground/30 space-y-3">
+                        <History size={32} strokeWidth={1} />
+                        <p className="text-[9px] font-black uppercase tracking-widest italic">Awaiting Terminal Activity</p>
+                     </div>
+                  ) : (
+                     cartPreview.map((item, i) => (
+                        <motion.div 
+                          key={i} 
+                          initial={{ x: -20, opacity: 0 }}
+                          animate={{ x: 0, opacity: 1 }}
+                          transition={{ delay: i * 0.05 }}
+                          className="bg-white/[0.03] border border-white/5 rounded-2xl p-4 flex items-center justify-between group"
+                        >
+                           <div className="flex items-center gap-4">
+                              <div className="h-11 w-11 rounded-xl bg-white/5 flex items-center justify-center text-muted-foreground border border-white/5 group-hover:border-primary/20 transition-all">
+                                 <Pill size={20} />
+                              </div>
+                              <div>
+                                 <p className="text-sm font-black italic uppercase tracking-tighter leading-none">{item.name}</p>
+                                 <p className="text-[9px] font-bold text-primary mt-1.5 font-mono">Qty: {item.quantity} units</p>
+                              </div>
+                           </div>
+                           <div className="text-right">
+                              <p className="font-black text-sm italic leading-none">KES {item.price.toLocaleString()}</p>
+                           </div>
+                        </motion.div>
+                     ))
+                  )}
+               </div>
+            </div>
+
+            {/* Diagnostic Terminal */}
+            <div className="pt-12 border-t border-white/5 space-y-6">
+                <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-2 text-primary opacity-50">
+                      <Stethoscope size={14} />
+                      <h4 className="text-[9px] font-black uppercase tracking-[0.3em]">Scanner Diagnostics</h4>
+                   </div>
+                   <Button 
+                    onClick={triggerPermissionRequest}
+                    variant="link" 
+                    className="text-[9px] font-black uppercase tracking-widest text-primary hover:text-white transition-colors"
+                   >
+                     Force Permission Prompt
+                   </Button>
+                </div>
+                
+                <div className="bg-black rounded-2xl p-6 border border-white/5 font-mono text-[10px] space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar">
+                   {debugLog ? debugLog.split('\n').map((line, i) => (
+                     <p key={i} className="text-primary/60 leading-relaxed">
+                        <span className="text-white/20 select-none mr-3">[{i+1}]</span>
+                        {line}
+                     </p>
+                   )) : (
+                     <p className="text-white/10 italic">Awaiting scanner activity...</p>
+                   )}
+                </div>
+
+                <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
+                   <div className="flex items-center gap-2 text-amber-500">
+                      <AlertCircle size={14} />
+                      <p className="text-[9px] font-black uppercase tracking-widest">Still not prompting?</p>
+                   </div>
+                   <p className="text-[10px] text-muted-foreground leading-relaxed">
+                     If the browser still won't ask for permission, click the **Lock Icon 🔒** in your browser's address bar and ensure "Camera" is set to "Allow".
+                   </p>
+                </div>
+            </div>
           </div>
         )}
+      </main>
 
-        {/* Active overlay */}
-        {isScanning && (
-          <>
-            {/* Vignette */}
-            <div className="absolute inset-0 z-10 pointer-events-none">
-              <div className="absolute top-0 inset-x-0 h-[22%] bg-gradient-to-b from-black/50 to-transparent" />
-              <div className="absolute bottom-0 inset-x-0 h-[22%] bg-gradient-to-t from-black/50 to-transparent" />
-              <div className="absolute inset-y-0 left-0 w-[12%] bg-gradient-to-r from-black/30 to-transparent" />
-              <div className="absolute inset-y-0 right-0 w-[12%] bg-gradient-to-l from-black/30 to-transparent" />
-            </div>
-
-            {/* Scan frame */}
-            <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
-              <div className="relative w-[68%] max-w-[280px] aspect-[5/3]">
-                <div className="absolute -top-0.5 -left-0.5 w-6 h-6 border-t-2 border-l-2 border-white/80 rounded-tl-md" />
-                <div className="absolute -top-0.5 -right-0.5 w-6 h-6 border-t-2 border-r-2 border-white/80 rounded-tr-md" />
-                <div className="absolute -bottom-0.5 -left-0.5 w-6 h-6 border-b-2 border-l-2 border-white/80 rounded-bl-md" />
-                <div className="absolute -bottom-0.5 -right-0.5 w-6 h-6 border-b-2 border-r-2 border-white/80 rounded-br-md" />
-                <motion.div
-                  initial={{ top: "8%" }} animate={{ top: "92%" }}
-                  transition={{ repeat: Infinity, repeatType: "reverse", duration: 1.6, ease: "easeInOut" }}
-                  className="absolute left-[8%] right-[8%] h-[2px] bg-primary rounded-full shadow-[0_0_10px_rgba(16,185,129,0.7)]"
-                />
-              </div>
-            </div>
-
-            {/* Bottom controls */}
-            <div className="absolute bottom-5 inset-x-0 z-20 flex items-center justify-center gap-6">
-              <button onClick={flipCam} className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-lg border border-white/10 flex items-center justify-center text-white/70 active:bg-white/10">
-                <SwitchCamera size={16} />
-              </button>
-              <motion.button whileTap={{ scale: 0.9 }} onClick={stopScanner}
-                className="h-14 w-14 rounded-full bg-white/10 backdrop-blur-lg border border-white/15 flex items-center justify-center active:bg-red-500/30"
-              >
-                <div className="h-5 w-5 rounded bg-white" />
-              </motion.button>
-              <button onClick={toggleFs} className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-lg border border-white/10 flex items-center justify-center text-white/70 active:bg-white/10">
-                {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* ─── SCAN RESULT TOAST ───────────────────────────── */}
-      <AnimatePresence>
-        {lastScanned && (
-          <motion.div
-            initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 400, damping: 28 }}
-            className="absolute bottom-24 left-4 right-4 z-[100] bg-emerald-500 rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-xl shadow-emerald-500/25"
-          >
-            <CheckCircle2 className="h-5 w-5 text-white flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[9px] font-semibold text-white/50 uppercase tracking-widest">Synced</p>
-              <p className="text-sm font-bold text-white truncate">{lastScanned.name}</p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Footer Branding */}
+      <footer className="p-8 text-center bg-transparent mt-auto sticky bottom-0 pointer-events-none">
+         <div className="inline-flex items-center gap-6 opacity-20 transition-opacity hover:opacity-50">
+            <div className="h-[1px] w-12 bg-gradient-to-r from-transparent to-white" />
+            <p className="text-[9px] font-black uppercase tracking-[0.5em] italic">Lumiaxy Enterprise</p>
+            <div className="h-[1px] w-12 bg-gradient-to-l from-transparent to-white" />
+         </div>
+      </footer>
     </div>
   );
 }
