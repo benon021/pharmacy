@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ScannerHubModal from "@/components/ScannerHubModal";
 import { supabase } from "@/lib/supabase";
+import { motion, AnimatePresence } from "framer-motion";
 
 
 const emptyDrug = {
