@@ -19,7 +19,8 @@ import * as XLSX from "xlsx";
 import { 
   ShieldCheck, FileUp, Activity, Plus, Search, Filter, 
   Pill, AlertTriangle, AlertCircle, PackagePlus, Edit, 
-  Loader2, Barcode, Hash, CalendarDays, Package, QrCode, ShieldAlert
+  Loader2, Barcode, Hash, CalendarDays, Package, QrCode, 
+  ShieldAlert, CheckCircle2, ChevronRight, ArrowRight, Zap
 } from "lucide-react";
 import EntityIntelligenceModal from "@/components/EntityIntelligenceModal";
 import { cn } from "@/lib/utils";
@@ -27,7 +28,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ScannerHubModal from "@/components/ScannerHubModal";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
-
 
 const emptyDrug = {
   name: "", 
@@ -57,10 +57,10 @@ const emptyDrug = {
 };
 
 const categoryColors: Record<string, string> = {
-  OTC: "bg-green-500/10 text-green-500 border-green-500/20",
+  OTC: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
   Prescription: "bg-blue-500/10 text-blue-500 border-blue-500/20",
   Supplement: "bg-violet-500/10 text-violet-500 border-violet-500/20",
-  Controlled: "bg-red-500/10 text-red-500 border-red-500/20",
+  Controlled: "bg-rose-500/10 text-rose-500 border-rose-500/20",
 };
 
 const DOSAGE_FORMS = [
@@ -96,7 +96,7 @@ export default function DrugCatalog() {
   const { data: drugs = [], isLoading, refetch } = useQuery({
     queryKey: ["drugs"],
     queryFn: () => localDb.drugs.getAll(),
-    staleTime: 30000, // 30 seconds
+    staleTime: 30000,
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -104,8 +104,6 @@ export default function DrugCatalog() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [saving, setSaving] = useState(false);
-  const [barcodeBuffer, setBarcodeBuffer] = useState("");
-  const [lastCharTime, setLastCharTime] = useState(0);
   const [form, setForm] = useState(emptyDrug);
   const [intelOpen, setIntelOpen] = useState(false);
   const [intelData, setIntelData] = useState<any>(null);
@@ -114,41 +112,8 @@ export default function DrugCatalog() {
   const [sessionId] = useState(() => crypto.randomUUID());
   const [lastRemoteBarcode, setLastRemoteBarcode] = useState<string | null>(null);
 
-  useEffect(() => {
-
-
-    const handleBarcodeInDialog = (e: KeyboardEvent) => {
-      if (!dialogOpen) return;
-
-      const target = e.target as HTMLElement;
-      const now = Date.now();
-      const diff = now - lastCharTime;
-
-      if (diff > 50) {
-        setBarcodeBuffer(e.key);
-      } else {
-        if (e.key === "Enter") {
-          if (barcodeBuffer.length > 3 && diff < 40) {
-            e.preventDefault();
-            setForm(prev => ({ ...prev, barcode: barcodeBuffer }));
-            toast.success("Barcode Scanned: " + barcodeBuffer, { duration: 1000 });
-            setBarcodeBuffer("");
-          }
-        } else {
-          if (e.key.length === 1) {
-            setBarcodeBuffer(prev => prev + e.key);
-          }
-        }
-      }
-      setLastCharTime(now);
-    };
-
-    window.addEventListener("keydown", handleBarcodeInDialog);
-    return () => window.removeEventListener("keydown", handleBarcodeInDialog);
-  }, [dialogOpen, barcodeBuffer, lastCharTime]);
-
   const handleRestockClick = (e: React.MouseEvent, drug: Drug) => {
-    e.stopPropagation(); // Avoid row click
+    e.stopPropagation();
     setIntelData(drug);
     setIntelTab("restock");
     setIntelOpen(true);
@@ -171,7 +136,7 @@ export default function DrugCatalog() {
         const currentDrugs = await localDb.drugs.getAll();
 
         for (const row of (data as any[])) {
-          const drugData: Omit<Drug, "id" | "created_at"> = {
+          const drugData: any = {
             name: row.Name || row.name,
             generic_name: row["Generic Name"] || row.generic_name || null,
             brand_name: row["Brand Name"] || row.brand_name || null,
@@ -214,7 +179,6 @@ export default function DrugCatalog() {
       } catch (err) {
         toast.error("Failed to parse Excel file.");
       }
-
     };
     reader.readAsBinaryString(file);
     e.target.value = "";
@@ -270,7 +234,7 @@ export default function DrugCatalog() {
   const generateBarcode = () => {
     const code = "600" + Math.floor(100000000 + Math.random() * 900000000).toString();
     setForm({ ...form, barcode: code });
-    toast.info("Generated Barcode: " + code);
+    toast.primary("Identity Generated: " + code);
   };
 
   const handleRemoteScan = (barcode: string) => {
@@ -282,10 +246,8 @@ export default function DrugCatalog() {
       icon: <CheckCircle2 className="text-primary animate-pulse" />
     });
     
-    // Auto-clear success state after pulse
     setTimeout(() => setLastRemoteBarcode(null), 2000);
 
-    // Ack back to phone (on shared channel)
     supabase.channel(`scanner-session:${sessionId}`).send({
       type: "broadcast",
       event: "SCAN_ACK",
@@ -325,547 +287,415 @@ export default function DrugCatalog() {
     queryClient.invalidateQueries({ queryKey: ["drugs"] });
   };
 
-
   return (
-    <div className="space-y-6 animate-fade-in pb-10">
-      <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-primary font-bold text-[10px] uppercase tracking-widest mb-2">
-            <ShieldCheck className="h-4 w-4" /> Regulatory Compliance System
-          </div>
-          <h1 className="text-3xl xl:text-4xl font-black tracking-tight text-foreground dark:text-white flex items-baseline gap-3">
-            Inventory Ledger <span className="text-primary text-sm font-bold bg-primary/10 px-3 py-1 rounded-lg">{drugs.length} Items</span>
-          </h1>
-          <p className="text-muted-foreground text-base">Comprehensive management of pharmaceutical stock and branches.</p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <input type="file" id="excel-import" className="hidden" accept=".xlsx, .xls, .csv" onChange={handleImport} />
-          <Button
-            variant="outline"
-            onClick={() => document.getElementById('excel-import')?.click()}
-            className="h-12 rounded-lg gap-2 px-6 font-bold uppercase text-[10px] tracking-widest"
+    <div className="space-y-12 pb-20">
+      {/* Cinematic Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="space-y-2">
+          <motion.h1 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="text-4xl md:text-5xl font-black italic tracking-tighter text-foreground uppercase"
           >
-            <FileUp className="h-4 w-4" /> Import Excel
-          </Button>
-          <Button onClick={openCreate} className="h-12 rounded-lg gap-3 px-8 font-bold uppercase text-[10px] tracking-widest bg-primary text-black" size="lg">
-            <Plus className="h-5 w-5" /> Add New Medicine
-          </Button>
+            Inventory <span className="aurora-text">Ledger</span>
+          </motion.h1>
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground">
+             <ShieldCheck className="h-4 w-4 text-primary" /> Pharmaceutical Grid Analytics
+          </div>
+        </div>
+        
+        <div className="flex flex-wrap gap-4">
+           <input type="file" id="excel-import" className="hidden" accept=".xlsx, .xls, .csv" onChange={handleImport} />
+           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button 
+                variant="outline"
+                onClick={() => document.getElementById('excel-import')?.click()}
+                className="h-14 px-8 rounded-2xl border-white/5 bg-white/[0.02] text-white/40 font-black uppercase tracking-widest text-[10px] hover:bg-white/5 transition-all"
+              >
+                <FileUp size={16} className="mr-2" /> Import Assets
+              </Button>
+           </motion.div>
+           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button 
+                onClick={openCreate} 
+                className="h-14 px-10 rounded-2xl bg-primary text-white font-black uppercase tracking-widest text-[10px] shadow-2xl shadow-primary/20 hover:shadow-primary/40 transition-all flex items-center gap-3 border border-primary/50"
+              >
+                <Plus size={16} /> Register Medicine
+              </Button>
+           </motion.div>
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4">
+      {/* Global Stock Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+         <StatsCard 
+           title="Active Catalog"
+           value={drugs.length}
+           icon={Package}
+           trend={{ value: "Syncing", positive: true }}
+           color="primary"
+         />
+         <StatsCard 
+           title="Depleting Stock"
+           value={drugs.filter(d => d.stock <= (d.reorder_level || 10)).length}
+           icon={AlertTriangle}
+           trend={{ value: "Critical", positive: false }}
+           color="accent"
+         />
+         <StatsCard 
+           title="Platform Revenue"
+           value={`UGX ${(drugs.reduce((acc, d) => acc + (d.price * d.stock), 0)).toLocaleString()}`}
+           icon={DollarSign}
+           trend={{ value: "Asset Val.", positive: true }}
+           color="primary"
+         />
+         <StatsCard 
+           title="System Pulse"
+           value="99.9%"
+           icon={Activity}
+           trend={{ value: "Verified", positive: true }}
+           color="accent"
+         />
+      </div>
+
+      {/* Control Layer */}
+      <div className="flex flex-col md:flex-row gap-6">
         <div className="relative flex-1 group">
-          <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary" />
+          <Search className="absolute left-6 top-1/2 h-5 w-5 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-colors" />
           <Input
             placeholder="Search by Brand, Formulation, Barcode..."
-            className="pl-14 h-12 rounded-lg bg-card dark:bg-white/5 border-border dark:border-white/10 text-base transition-all focus:ring-2 focus:ring-primary/10 shadow-sm"
+            className="pl-16 h-16 rounded-2xl bg-white/[0.01] border-white/5 text-base font-bold italic tracking-tight focus:border-primary/50 focus:bg-white/[0.03] transition-all shadow-inner"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex gap-2 min-w-[200px]">
+        <div className="flex gap-2 min-w-[240px]">
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-full h-12 rounded-lg bg-card dark:bg-white/5 border-border dark:border-white/10 font-bold uppercase text-[10px] tracking-widest text-muted-foreground">
-              <div className="flex items-center gap-2">
+            <SelectTrigger className="w-full h-16 rounded-2xl bg-white/[0.01] border-white/5 font-black uppercase text-[10px] tracking-[0.2em] text-white/40 focus:border-primary/50">
+              <div className="flex items-center gap-3">
                 <Filter className="h-4 w-4 text-primary" />
                 <SelectValue placeholder="All Categories" />
               </div>
             </SelectTrigger>
-            <SelectContent className="bg-[#0B0E14] border-border dark:border-white/10 text-foreground dark:text-white">
-              <SelectItem value="all">All Categories</SelectItem>
-              <SelectItem value="OTC">OTC</SelectItem>
-              <SelectItem value="Prescription">Prescription</SelectItem>
-              <SelectItem value="Supplement">Supplement</SelectItem>
-              <SelectItem value="Controlled">Controlled</SelectItem>
+            <SelectContent className="bg-[#0a0a0c] border-white/10 rounded-2xl p-2 backdrop-blur-3xl">
+              <SelectItem value="all" className="p-3 rounded-xl font-black text-[10px] uppercase">All Clusters</SelectItem>
+              <SelectItem value="OTC" className="p-3 rounded-xl font-black text-[10px] uppercase">OTC Retail</SelectItem>
+              <SelectItem value="Prescription" className="p-3 rounded-xl font-black text-[10px] uppercase">Prescription Only</SelectItem>
+              <SelectItem value="Supplement" className="p-3 rounded-xl font-black text-[10px] uppercase">Nutraceuticals</SelectItem>
+              <SelectItem value="Controlled" className="p-3 rounded-xl font-black text-[10px] uppercase">Controlled DDA</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-[1rem] border border-border dark:border-white/5">
-        <div className="min-w-[1000px]">
-          <div className="premium-card !p-0 overflow-hidden shadow-2xl backdrop-blur-3xl">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50 border-border dark:border-white/5">
-              <TableHead className="py-4 font-bold text-[10px] uppercase tracking-widest text-muted-foreground px-6">Product Information</TableHead>
-              <TableHead className="py-4 font-bold text-[10px] uppercase tracking-widest text-muted-foreground">Category</TableHead>
-              <TableHead className="py-4 text-right font-bold text-[10px] uppercase tracking-widest text-muted-foreground px-6">Price</TableHead>
-              <TableHead className="py-4 text-right font-bold text-[10px] uppercase tracking-widest text-muted-foreground">Stock Level</TableHead>
-              <TableHead className="py-4 font-bold text-[10px] uppercase tracking-widest text-muted-foreground px-6">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-32 text-muted-foreground">
-                  <div className="flex flex-col items-center gap-4">
-                    {isLoading ? (
-                      <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                    ) : (
-                      <Package className="h-16 w-16 opacity-5 animate-pulse" />
-                    )}
-                    <p className="font-bold uppercase tracking-[0.2em] text-[10px]">
-                      {isLoading ? "Consulting Global Ledger..." : "Zero matches across forensic database"}
-                    </p>
-                  </div>
-                </TableCell>
+      {/* Data Grid */}
+      <div className="premium-card p-0 bg-white/[0.01] overflow-hidden border-white/5 shadow-3xl">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-white/[0.02]">
+              <TableRow className="border-white/5 hover:bg-transparent">
+                <TableHead className="py-6 px-10 text-[9px] font-black uppercase tracking-widest text-white/20">Product Specification</TableHead>
+                <TableHead className="text-[9px] font-black uppercase tracking-widest text-white/20">Metric Tier</TableHead>
+                <TableHead className="text-right text-[9px] font-black uppercase tracking-widest text-white/20">Valuation</TableHead>
+                <TableHead className="text-right text-[9px] font-black uppercase tracking-widest text-white/20">Inventory</TableHead>
+                <TableHead className="text-right px-10 text-[9px] font-black uppercase tracking-widest text-white/20">Protocols</TableHead>
               </TableRow>
-
-            ) : filtered.map((drug, i) => {
-              const isExpired = drug.expiry_date && new Date(drug.expiry_date) < new Date();
-              const isFinished = drug.stock <= 0;
-              const isLow = !isFinished && drug.stock <= (drug.reorder_level || 10);
-
-              return (
-                <TableRow
-                  key={drug.id}
-                  onClick={() => {
-                    setIntelData(drug);
-                    setIntelTab("intelligence");
-                    setIntelOpen(true);
-                  }}
-                  className={cn(
-                    "group hover:bg-muted dark:bg-white/[0.02] border-border dark:border-white/5 transition-all cursor-pointer",
-                    isExpired && "bg-red-500/[0.03]"
-                  )}
-                >
-                  <TableCell className="px-8 py-6">
-                    <div className="flex items-center gap-5">
-                      <div className={cn(
-                        "flex h-14 w-14 items-center justify-center rounded-2xl border transition-all duration-500 group-hover:rotate-6 group-hover:scale-110 shadow-lg",
-                        isExpired ? "bg-red-500/10 text-red-500 border-red-500/20" :
-                          isFinished ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
-                            "bg-primary/5 text-primary border-primary/10"
-                      )}>
-                        {drug.form === "Syrup" ? <Activity className="h-7 w-7" /> : <Pill className="h-7 w-7" />}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-black text-foreground dark:text-white text-lg tracking-tighter leading-tight group-hover:text-primary transition-colors italic">{drug.name}</p>
-                          {drug.sku && <Badge variant="outline" className="h-4 px-1 text-[8px] font-mono border-white/5 text-muted-foreground opacity-50 uppercase tracking-tighter">SKU: {drug.sku}</Badge>}
-                        </div>
-                        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] mt-1">{drug.generic_name || "Formulation Pending"}</p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-2">
-                      {isExpired ? (
-                        <Badge className="bg-red-500 text-black font-black uppercase tracking-widest text-[9px] animate-pulse rounded-lg px-3">EXPIRED</Badge>
-                      ) : isFinished ? (
-                        <Badge className="bg-amber-500 text-black font-black uppercase tracking-widest text-[9px] rounded-lg px-3">STOCK_OUT</Badge>
-                      ) : (
-                        <Badge className={cn("px-3 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest", categoryColors[drug.category])}>
-                          {drug.category}
-                        </Badge>
-                      )}
-                      {isLow && !isExpired && (
-                        <Badge className="bg-red-500/10 text-red-500 border-red-500/20 text-[8px] font-black px-2 h-5 flex items-center gap-1 rounded-lg">
-                          <AlertTriangle className="h-3 w-3" /> DEPLETING
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right px-8">
-                    <p className="font-black text-foreground dark:text-white tabular-nums text-2xl tracking-tighter italic">KES {Number(drug.price).toLocaleString()}</p>
-                    <p className="text-[9px] text-muted-foreground font-black uppercase tracking-[0.2em] mt-1">
-                      {drug.is_taxable ? <span className="text-amber-500 opacity-80 decoration-double underline underline-offset-4">VAT_ENABLED</span> : <span className="text-green-500 opacity-80">ZERO_RATED</span>}
-                    </p>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex flex-col items-end gap-1">
-                      <div className="flex items-center gap-2">
-                        {isLow && <AlertCircle className="h-4 w-4 text-red-500 animate-pulse" />}
-                        <span className={cn("font-black tabular-nums text-3xl tracking-tighter italic", (isLow || isFinished || isExpired) ? "text-red-500" : "text-foreground dark:text-white")}>
-                          {drug.stock}
-                        </span>
-                      </div>
-                      <p className="text-[9px] text-muted-foreground font-black uppercase tracking-[0.3em]">{drug.unit} AVAILABLE</p>
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-8">
-                    <div className="flex items-center justify-end gap-3">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => handleRestockClick(e, drug)}
-                        className="h-12 w-12 rounded-2xl bg-green-500/5 hover:bg-green-500 text-green-500 hover:text-black border border-green-500/10 transition-all shadow-lg"
-                        title="Restock Intel"
-                      >
-                        <PackagePlus className="h-5 w-5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => openEdit(e, drug)}
-                        className="h-12 w-12 rounded-2xl bg-card dark:bg-white/5 hover:bg-primary text-muted-foreground hover:text-black border border-border dark:border-white/5 transition-all"
-                        title="Edit Record"
-                      >
-                        <Edit className="h-5 w-5" />
-                      </Button>
-                    </div>
+            </TableHeader>
+            <TableBody>
+              {filtered.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-40 text-center">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto opacity-20" />
+                    <p className="mt-6 text-[10px] font-black uppercase tracking-[0.5em] text-white/10">Scanning Global Ledger...</p>
                   </TableCell>
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-          </div>
+              ) : filtered.map((drug, i) => {
+                const isExpired = drug.expiry_date && new Date(drug.expiry_date) < new Date();
+                const isFinished = drug.stock <= 0;
+                const isLow = !isFinished && drug.stock <= (drug.reorder_level || 10);
+
+                return (
+                  <motion.tr
+                    key={drug.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    onClick={() => {
+                      setIntelData(drug);
+                      setIntelTab("intelligence");
+                      setIntelOpen(true);
+                    }}
+                    className={cn(
+                      "border-white/5 hover:bg-white/[0.03] transition-all cursor-pointer group",
+                      isExpired && "bg-rose-500/[0.02]"
+                    )}
+                  >
+                    <TableCell className="py-6 px-10">
+                      <div className="flex items-center gap-5">
+                        <div className={cn(
+                          "h-14 w-14 rounded-2xl border flex items-center justify-center transition-all duration-500 group-hover:scale-110 shadow-lg",
+                          isExpired ? "bg-rose-500/10 text-rose-500 border-rose-500/20" :
+                          isFinished ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
+                          "bg-primary/5 text-primary border-primary/20"
+                        )}>
+                          {drug.form === "Syrup" ? <Zap size={20} /> : <Pill size={20} />}
+                        </div>
+                        <div>
+                           <div className="flex items-center gap-3">
+                              <p className="font-black text-white text-lg tracking-tighter italic uppercase group-hover:text-primary transition-colors">{drug.name}</p>
+                              <Badge className="bg-white/5 text-[8px] font-mono border-white/5 text-white/20 opacity-40 uppercase">SKU_{drug.sku || "NULL"}</Badge>
+                           </div>
+                           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mt-1">{drug.generic_name || "Unformulated Asset"}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-2">
+                        {isExpired ? (
+                          <Badge className="bg-rose-500 text-black font-black uppercase tracking-widest text-[9px] animate-pulse rounded-lg px-3 italic">EXPIRED</Badge>
+                        ) : (
+                          <Badge className={cn("px-3 py-1 rounded-lg border text-[9px] font-black uppercase tracking-widest italic", categoryColors[drug.category])}>
+                            {drug.category}
+                          </Badge>
+                        )}
+                        {isLow && !isExpired && (
+                          <Badge className="bg-rose-500/10 text-rose-500 border-rose-500/20 text-[8px] font-black px-2 h-5 flex items-center gap-1 rounded-lg">
+                            <AlertCircle size={10} /> Depleting
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                       <p className="font-black text-white text-2xl tracking-tighter italic">UGX {Number(drug.price).toLocaleString()}</p>
+                       <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest opacity-40 mt-1">{drug.is_taxable ? "VAT_INC" : "VAT_EXEMPT"}</p>
+                    </TableCell>
+                    <TableCell className="text-right">
+                       <div className="flex flex-col items-end">
+                          <span className={cn(
+                            "text-3xl font-black italic tracking-tighter",
+                            isLow || isFinished ? "text-rose-500" : "text-white"
+                          )}>{drug.stock}</span>
+                          <span className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground opacity-30">{drug.unit} Global</span>
+                       </div>
+                    </TableCell>
+                    <TableCell className="px-10">
+                      <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
+                         <Button
+                          variant="ghost"
+                          onClick={(e) => handleRestockClick(e, drug)}
+                          className="h-10 px-4 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-500 hover:text-black font-black uppercase text-[9px] tracking-widest border border-emerald-500/10"
+                        >
+                          <PackagePlus size={14} className="mr-2" /> Restock
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => openEdit(e, drug)}
+                          className="h-10 w-10 rounded-xl bg-white/5 hover:bg-primary text-white/40 hover:text-black border border-white/5"
+                        >
+                          <Edit size={16} />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </motion.tr>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
       </div>
 
+      {/* Main Registry Dialog - Aniq UI Reconstruct */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl w-[95vw] md:w-full bg-background border-border rounded-xl p-0 overflow-hidden shadow-2xl">
-          <DialogHeader className="p-6 md:p-8 bg-muted/30 border-b border-border">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <DialogTitle className="text-2xl font-bold tracking-tight text-foreground uppercase">{editingDrug ? "Update Product" : "Register New Product"}</DialogTitle>
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary">
-                   Inventory Management System
-                </div>
-              </div>
-            </div>
-          </DialogHeader>
-
-          <div className="p-6 md:p-10 space-y-6 md:space-y-10 max-h-[75vh] overflow-y-auto custom-scrollbar">
-            {/* Identification Layer */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="h-px flex-1 bg-white/5" />
-                <span className="text-[10px] font-black uppercase tracking-[0.5em] text-white/40">Identification</span>
-                <div className="h-px flex-1 bg-white/5" />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="space-y-2 lg:col-span-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Commercial / Display Name *</Label>
-                  <Input className="h-14 rounded-2xl bg-white/5 border-white/10 focus:ring-4 focus:ring-primary/10 text-white font-bold italic" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Panadol Forte" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Manufacturer Brand</Label>
-                  <Input className="h-14 rounded-2xl bg-white/5 border-white/10 text-white font-bold" value={form.brand_name || ""} onChange={e => setForm({ ...form, brand_name: e.target.value })} placeholder="e.g. GSK" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Generic / Formulation</Label>
-                  <Select 
-                    value={form.generic_name && !GENERIC_NAMES.filter(n => n !== "Other").includes(form.generic_name) ? "Other" : form.generic_name || ""} 
-                    onValueChange={v => setForm({ ...form, generic_name: v === "Other" ? "" : v })}
-                  >
-                    <SelectTrigger className="h-14 rounded-2xl bg-white/5 border-white/10 text-white/70 font-bold italic"><SelectValue placeholder="Select Generic..." /></SelectTrigger>
-                    <SelectContent className="bg-[#0B0E14] border-white/10 text-white max-h-[300px]">
-                      {GENERIC_NAMES.map(name => (
-                        <SelectItem key={name} value={name}>{name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {(form.generic_name === "" || (form.generic_name && !GENERIC_NAMES.filter(n => n !== "Other").includes(form.generic_name))) && (
-                    <Input className="h-12 mt-2 rounded-xl bg-white/5 border-primary/20 text-white text-xs italic animate-slide-up" value={form.generic_name || ""} onChange={e => setForm({ ...form, generic_name: e.target.value })} placeholder="Type custom formulation..." />
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex justify-between">
-                    <span>Barcode / QR</span>
-                    <div className="flex gap-2">
-                       <button onClick={() => setScannerModalOpen(true)} className="text-primary hover:underline lowercase text-[9px] tracking-normal flex items-center gap-1">
-                          <QrCode size={10} /> Scan with Phone
-                       </button>
-                       <button onClick={generateBarcode} className="text-muted-foreground hover:underline lowercase text-[9px] tracking-normal">Auto Generate</button>
+        <DialogContent className="max-w-5xl w-[95vw] bg-[#0a0a0c] border border-white/5 rounded-[3rem] p-0 overflow-hidden backdrop-blur-3xl shadow-3xl">
+           <div className="absolute top-0 right-0 p-20 bg-primary/10 blur-[140px] rounded-full -z-10 animate-pulse" />
+           
+           <DialogHeader className="p-12 border-b border-white/5 bg-white/[0.02]">
+              <div className="flex items-center justify-between">
+                 <div className="space-y-1">
+                    <h2 className="text-4xl font-black italic tracking-tighter text-white uppercase">{editingDrug ? "Update" : "Register"} <span className="aurora-text">Asset</span></h2>
+                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.4em] text-primary">
+                       <ShieldCheck size={14} /> Pharmaceutical Node Ledger
                     </div>
-                  </Label>
-                  <div className="relative group">
-                    <Barcode className={cn(
-                      "absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors",
-                      lastRemoteBarcode ? "text-primary animate-bounce" : "text-muted-foreground group-focus-within:text-primary"
-                    )} />
-                    <Input 
-                      className={cn(
-                        "h-14 pl-12 rounded-2xl bg-white/5 border-white/10 text-white font-mono tracking-widest text-lg transition-all duration-500",
-                        lastRemoteBarcode ? "border-primary ring-4 ring-primary/20 shadow-[0_0_30px_rgba(var(--primary-rgb),0.3)] bg-primary/10" : "focus:border-primary/40 focus:ring-4 focus:ring-primary/10"
-                      )} 
-                      value={form.barcode} 
-                      onChange={e => setForm({ ...form, barcode: e.target.value })} 
-                      placeholder="Scan or type..." 
-                    />
-                    
-                    {/* Capture Pulse Animation */}
-                    <AnimatePresence>
-                      {lastRemoteBarcode && (
-                        <motion.div 
-                          className="absolute inset-0 border-2 border-primary rounded-2xl pointer-events-none"
-                          initial={{ opacity: 0, scale: 0.8 }}
-                          animate={{ opacity: 1, scale: 1.05 }}
-                          exit={{ opacity: 0, scale: 1.2 }}
-                          transition={{ duration: 0.5 }}
-                        />
-                      )}
-                    </AnimatePresence>
-                  </div>
-                  {/* Live Barcode Preview */}
-                  {form.barcode && (
-                    <div className="mt-2 p-4 rounded-2xl bg-white/[0.03] border border-primary/20 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[8px] font-black uppercase tracking-[0.3em] text-primary/60">Live Barcode Preview</span>
-                        <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-1">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          Stored
-                        </span>
-                      </div>
-                      {/* Barcode visual strip */}
-                      <div className="bg-white rounded-xl p-3 flex flex-col items-center gap-2">
-                        <div className="flex items-end gap-[1px] h-12 w-full max-w-[280px]">
-                          {form.barcode.split('').map((char: string, i: number) => {
-                            const w = ((char.charCodeAt(0) % 3) + 1);
-                            return (
-                              <div 
-                                key={i} 
-                                className="bg-black flex-shrink-0 rounded-sm"
-                                style={{ 
-                                  width: `${w * 2}px`, 
-                                  height: `${28 + (char.charCodeAt(0) % 20)}px`,
-                                  marginRight: i % 4 === 3 ? '3px' : '0px'
-                                }}
-                              />
-                            );
-                          })}
-                        </div>
-                        <p className="text-black font-mono text-sm font-bold tracking-[0.25em] text-center">{form.barcode}</p>
-                      </div>
+                 </div>
+              </div>
+           </DialogHeader>
+
+           <div className="p-12 space-y-12 max-h-[65vh] overflow-y-auto custom-scrollbar">
+              {/* Layer 1: Global Identity */}
+              <div className="space-y-8">
+                 <div className="flex items-center gap-4">
+                    <span className="text-[10px] font-black uppercase tracking-[0.5em] text-white/20">01 Identification Core</span>
+                    <div className="h-px flex-1 bg-white/5" />
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2 space-y-3">
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1">Commercial Label *</Label>
+                       <Input 
+                         className="h-16 rounded-2xl bg-white/5 border-white/5 focus:border-primary/50 text-white font-black italic uppercase text-2xl tracking-tighter" 
+                         value={form.name} 
+                         onChange={e => setForm({ ...form, name: e.target.value })} 
+                         placeholder="E.G. PANADOL ADVANCE" 
+                       />
                     </div>
-                  )}
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Drug Code / SKU</Label>
-                  <Input className="h-14 rounded-2xl bg-white/5 border-white/10 text-white font-mono" value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} placeholder="e.g. PAN-992-KE" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Therapeutic Class</Label>
-                  <Select 
-                    value={form.therapeutic_class && !THERAPEUTIC_CLASSES.filter(c => c !== "Other").includes(form.therapeutic_class) ? "Other" : form.therapeutic_class || ""} 
-                    onValueChange={v => setForm({ ...form, therapeutic_class: v === "Other" ? "" : v })}
-                  >
-                    <SelectTrigger className="h-14 rounded-2xl bg-white/5 border-white/10 text-white font-bold"><SelectValue placeholder="Select Class..." /></SelectTrigger>
-                    <SelectContent className="bg-[#0B0E14] border-white/10 text-white max-h-[300px]">
-                      {THERAPEUTIC_CLASSES.map(cls => (
-                        <SelectItem key={cls} value={cls}>{cls}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {(form.therapeutic_class === "" || (form.therapeutic_class && !THERAPEUTIC_CLASSES.filter(c => c !== "Other").includes(form.therapeutic_class))) && (
-                    <Input className="h-12 mt-2 rounded-xl bg-white/5 border-primary/20 text-white text-xs italic animate-slide-up" value={form.therapeutic_class || ""} onChange={e => setForm({ ...form, therapeutic_class: e.target.value })} placeholder="Type custom therapeutic class..." />
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Composition & formulation */}
-            <div className="space-y-6">
-               <div className="flex items-center gap-2 mb-4">
-                <div className="h-px flex-1 bg-white/5" />
-                <span className="text-[10px] font-black uppercase tracking-[0.5em] text-white/40">Composition</span>
-                <div className="h-px flex-1 bg-white/5" />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="space-y-2 lg:col-span-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Active Ingredients (Strength)</Label>
-                  <Input className="h-14 rounded-2xl bg-white/5 border-white/10 text-white" value={form.active_ingredients} onChange={e => setForm({ ...form, active_ingredients: e.target.value })} placeholder="e.g. Paracetamol 500mg, Caffeine 30mg" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Dosage Form</Label>
-                  <Select value={form.form} onValueChange={v => setForm({ ...form, form: v })}>
-                    <SelectTrigger className="h-14 rounded-2xl bg-white/5 border-white/10 font-bold text-white"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-[#0B0E14] border-white/10 text-white max-h-[300px]">
-                      {DOSAGE_FORMS.map(f => (
-                        <SelectItem key={f} value={f}>{f}</SelectItem>
-                      ))}
-                      <SelectItem value="Other">Other Form...</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Medical Strength</Label>
-                  <div className="flex gap-2">
-                    <Input 
-                      className="h-14 w-24 rounded-2xl bg-white/5 border-white/10 text-white font-bold text-center"
-                      value={form.strength?.match(/^\d+/)?.[0] || ""}
-                      onChange={e => {
-                        const unit = form.strength?.replace(/^\d+/, "") || "mg";
-                        setForm({ ...form, strength: e.target.value + unit });
-                      }}
-                      placeholder="500"
-                    />
-                    <Select 
-                      value={form.strength?.replace(/^\d+/, "") || "mg"} 
-                      onValueChange={v => {
-                        const val = form.strength?.match(/^\d+/)?.[0] || "";
-                        setForm({ ...form, strength: val + v });
-                      }}
-                    >
-                      <SelectTrigger className="h-14 flex-1 rounded-2xl bg-white/5 border-white/10 text-white font-bold">
-                        <SelectValue placeholder="Unit" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-[#0B0E14] border-white/10 text-white max-h-[300px]">
-                        {STRENGTH_UNITS.map(unit => (
-                          <SelectItem key={unit} value={unit}>{unit}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Inventory Dynamics */}
-            <div className="space-y-6">
-               <div className="flex items-center gap-2 mb-4">
-                <div className="h-px flex-1 bg-white/5" />
-                <span className="text-[10px] font-black uppercase tracking-[0.5em] text-white/40">Inventory & Supply</span>
-                <div className="h-px flex-1 bg-white/5" />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-accent flex items-center gap-2"><Hash className="h-3 w-3" /> Batch identity</Label>
-                  <Input className="h-14 rounded-2xl bg-accent/5 border-accent/20 text-white font-mono" value={form.batch_number} onChange={e => setForm({ ...form, batch_number: e.target.value })} placeholder="LOT_2024_001" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-accent flex items-center gap-2"><CalendarDays className="h-3 w-3" /> Expiry date</Label>
-                  <Input className="h-14 rounded-2xl bg-accent/5 border-accent/20 text-white" type="date" value={form.expiry_date} onChange={e => setForm({ ...form, expiry_date: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Stock On-Hand</Label>
-                  <div className="flex gap-2">
-                    <Input type="number" className="h-14 flex-1 rounded-2xl bg-white/5 border-white/10 text-white font-black text-lg" value={form.stock} onChange={e => setForm({ ...form, stock: Number(e.target.value) })} />
-                    <Select value={form.unit} onValueChange={v => setForm({ ...form, unit: v })}>
-                      <SelectTrigger className="h-14 w-28 rounded-2xl bg-white/5 border-white/10 text-[10px] font-black uppercase tracking-widest text-primary">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-[#0B0E14] border-white/10 text-white">
-                        {["pcs", "box", "bottle", "vial", "strip", "ampoule", "sachet", "tin"].map(u => (
-                          <SelectItem key={u} value={u} className="uppercase text-[9px] font-black tracking-widest">{u}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-red-500/80">Reorder threshold</Label>
-                  <Input type="number" className="h-14 rounded-2xl bg-red-500/5 border-red-500/20 text-red-500 font-black" value={form.reorder_level} onChange={e => setForm({ ...form, reorder_level: Number(e.target.value) })} />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Manufacturer / Global Brand</Label>
-                  <Input className="h-14 rounded-2xl bg-white/5 border-white/10 text-white" value={form.manufacturer} onChange={e => setForm({ ...form, manufacturer: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Registered Supplier</Label>
-                  <Input className="h-14 rounded-2xl bg-white/5 border-white/10 text-white" value={form.supplier} onChange={e => setForm({ ...form, supplier: e.target.value })} />
-                </div>
-              </div>
-            </div>
-
-            {/* Commercial Strategy */}
-            <div className="space-y-6">
-               <div className="flex items-center gap-2 mb-4">
-                <div className="h-px flex-1 bg-white/5" />
-                <span className="text-[10px] font-black uppercase tracking-[0.5em] text-white/40">Financials & Clinical</span>
-                <div className="h-px flex-1 bg-white/5" />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Purchase Price (Acquisition)</Label>
-                  <Input type="number" className="h-14 rounded-2xl bg-white/5 border-white/10 text-white/60 font-bold" value={form.cost_price} onChange={e => setForm({ ...form, cost_price: Number(e.target.value) })} />
-                </div>
-                 <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-primary">Selling Price (Retail)</Label>
-                  <Input type="number" className="h-14 rounded-2xl bg-primary/5 border-primary/20 text-white font-black text-xl italic" value={form.price} onChange={e => setForm({ ...form, price: Number(e.target.value) })} />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-amber-500">VAT Rate (%)</Label>
-                  <Input type="number" className="h-14 rounded-2xl bg-white/5 border-white/10 text-white font-bold" value={form.tax_rate} onChange={e => setForm({ ...form, tax_rate: Number(e.target.value) })} />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Category Strategy</Label>
-                  <Select value={form.category} onValueChange={v => setForm({ ...form, category: v, prescription_required: v === "Prescription" || v === "Controlled" })}>
-                    <SelectTrigger className="h-14 rounded-2xl bg-white/5 border-white/10 font-black text-white"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-[#0B0E14] border-white/10 text-white">
-                      <SelectItem value="OTC">OTC / Retail</SelectItem>
-                      <SelectItem value="Prescription">Prescription Only</SelectItem>
-                      <SelectItem value="Supplement">Nutraceuticals</SelectItem>
-                      <SelectItem value="Controlled">Dangerous Drug Act (DDA)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <div className="space-y-3">
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Registry Code (SKU)</Label>
+                       <Input 
+                         className="h-16 rounded-2xl bg-white/5 border-white/5 text-white font-mono tracking-widest" 
+                         value={form.sku} 
+                         onChange={e => setForm({ ...form, sku: e.target.value })} 
+                         placeholder="SKU_99182_PH" 
+                       />
+                    </div>
+                    <div className="space-y-3">
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Active Formulation</Label>
+                       <Select value={form.generic_name} onValueChange={v => setForm({ ...form, generic_name: v })}>
+                          <SelectTrigger className="h-16 rounded-2xl bg-white/5 border-white/5 text-white/80 font-bold italic">
+                             <SelectValue placeholder="Select Metric..." />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#0a0a0c] border-white/10 rounded-2xl backdrop-blur-3xl text-sm font-bold p-2">
+                             {GENERIC_NAMES.map(n => <SelectItem key={n} value={n} className="rounded-xl p-3">{n}</SelectItem>)}
+                          </SelectContent>
+                       </Select>
+                    </div>
+                    <div className="space-y-3">
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex justify-between">
+                          <span>Physical Protocol (Barcode)</span>
+                          <button onClick={() => setScannerModalOpen(true)} className="text-primary hover:underline lowercase text-[9px] tracking-normal flex items-center gap-1">
+                             <QrCode size={10} /> Mobile Sync
+                          </button>
+                       </Label>
+                       <div className="relative group">
+                          <Barcode className={cn(
+                            "absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 transition-colors",
+                            lastRemoteBarcode ? "text-primary animate-bounce font-black" : "text-white/20 group-focus-within:text-primary"
+                          )} />
+                          <Input 
+                            className={cn(
+                              "h-16 pl-14 rounded-2xl bg-white/5 border-white/5 text-white font-mono tracking-[0.2em] text-xl transition-all duration-500",
+                              lastRemoteBarcode ? "border-primary ring-8 ring-primary/10 bg-primary/5" : "focus:border-primary/50"
+                            )} 
+                            value={form.barcode} 
+                            onChange={e => setForm({ ...form, barcode: e.target.value })} 
+                            placeholder="600********" 
+                          />
+                          <AnimatePresence>
+                             {lastRemoteBarcode && (
+                               <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 border-2 border-primary rounded-2xl pointer-events-none shadow-[0_0_30px_rgba(var(--primary-rgb),0.2)]" />
+                             )}
+                          </AnimatePresence>
+                       </div>
+                    </div>
+                    <div className="space-y-3">
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Dosage Protocol</Label>
+                        <Select value={form.form} onValueChange={v => setForm({ ...form, form: v })}>
+                          <SelectTrigger className="h-16 rounded-2xl bg-white/5 border-white/5 text-white font-bold italic">
+                             <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#0a0a0c] border-white/10 rounded-2xl backdrop-blur-3xl p-2 max-h-[300px]">
+                             {DOSAGE_FORMS.map(f => <SelectItem key={f} value={f} className="rounded-xl p-3 text-xs font-bold">{f}</SelectItem>)}
+                          </SelectContent>
+                       </Select>
+                    </div>
+                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center bg-white/[0.02] p-8 rounded-[2rem] border border-white/5">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label className="text-sm font-black text-white italic">VAT Compliance</Label>
-                    <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Apply tax rate</p>
-                  </div>
-                  <Switch checked={form.is_taxable} onCheckedChange={v => setForm({ ...form, is_taxable: v })} className="data-[state=checked]:bg-primary" />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label className="text-sm font-black text-white italic">Clinical Block</Label>
-                    <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Rx Required</p>
-                  </div>
-                  <Switch checked={form.prescription_required} onCheckedChange={v => setForm({ ...form, prescription_required: v })} className="data-[state=checked]:bg-accent" />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label className="text-sm font-black text-white italic">Visibility</Label>
-                    <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">Active Status</p>
-                  </div>
-                  <Switch checked={form.is_active} onCheckedChange={v => setForm({ ...form, is_active: v })} className="data-[state=checked]:bg-green-500" />
-                </div>
+              {/* Layer 2: Inventory & Supply */}
+              <div className="space-y-8">
+                 <div className="flex items-center gap-4">
+                    <span className="text-[10px] font-black uppercase tracking-[0.5em] text-white/20">02 Supply Dynamics</span>
+                    <div className="h-px flex-1 bg-white/5" />
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <div className="space-y-3">
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-accent ml-1">Batch Registry</Label>
+                       <Input className="h-16 rounded-2xl bg-white/5 border-white/5 text-white font-mono italic" value={form.batch_number} onChange={e => setForm({ ...form, batch_number: e.target.value })} placeholder="BATCH_2026_X" />
+                    </div>
+                    <div className="space-y-3">
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-accent ml-1">Temporal Expiry</Label>
+                       <Input type="date" className="h-16 rounded-2xl bg-white/5 border-white/5 text-white font-black" value={form.expiry_date} onChange={e => setForm({ ...form, expiry_date: e.target.value })} />
+                    </div>
+                    <div className="space-y-3">
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-white/40 ml-1">Liquid Strength</Label>
+                       <Input className="h-16 rounded-2xl bg-white/5 border-white/5 text-white font-bold italic text-lg" value={form.strength} onChange={e => setForm({ ...form, strength: e.target.value })} placeholder="500MG" />
+                    </div>
+                    <div className="space-y-3">
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-rose-500 ml-1">Critical Threshold</Label>
+                       <Input type="number" className="h-16 rounded-2xl bg-rose-500/5 border-rose-500/20 text-rose-500 font-black text-xl" value={form.reorder_level} onChange={e => setForm({ ...form, reorder_level: Number(e.target.value) })} />
+                    </div>
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-3">
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">On-Hand Units</Label>
+                       <div className="flex gap-4">
+                          <Input type="number" className="h-16 flex-1 rounded-2xl bg-white/5 border-white/5 text-white font-black text-2xl italic tracking-tighter" value={form.stock} onChange={e => setForm({ ...form, stock: Number(e.target.value) })} />
+                          <Select value={form.unit} onValueChange={v => setForm({ ...form, unit: v })}>
+                             <SelectTrigger className="h-16 w-32 rounded-2xl bg-white/5 border-white/5 text-[10px] font-black uppercase tracking-widest text-primary">
+                                <SelectValue />
+                             </SelectTrigger>
+                             <SelectContent className="bg-[#0a0a0c] border-white/10 p-2 rounded-xl">
+                                {["pcs", "box", "bottle", "vial", "strip", "ampoule"].map(u => <SelectItem key={u} value={u} className="font-black p-3 text-[10px] uppercase">{u}</SelectItem>)}
+                             </SelectContent>
+                          </Select>
+                       </div>
+                    </div>
+                    <div className="space-y-3">
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Manufacturer Node</Label>
+                       <Input className="h-16 rounded-2xl bg-white/5 border-white/5 text-white uppercase font-bold text-sm tracking-widest" value={form.manufacturer} onChange={e => setForm({ ...form, manufacturer: e.target.value })} />
+                    </div>
+                 </div>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Clinical Indications / Usage Guidelines</Label>
-              <textarea
-                className="w-full rounded-[2rem] bg-white/5 border-white/10 p-6 text-sm focus:ring-4 focus:ring-primary/10 outline-none min-h-[120px] text-white/80 font-medium leading-relaxed"
-                value={form.description}
-                onChange={e => setForm({ ...form, description: e.target.value })}
-                placeholder="Enter clinical notes, antibiotic course details, or contraindications..."
-              />
-            </div>
-          </div>
+              {/* Layer 3: Valuation */}
+              <div className="space-y-8">
+                 <div className="flex items-center gap-4">
+                    <span className="text-[10px] font-black uppercase tracking-[0.5em] text-white/20">03 Commercial Strat</span>
+                    <div className="h-px flex-1 bg-white/5" />
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div className="space-y-3">
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Asset Value (Acq)</Label>
+                       <Input type="number" className="h-16 rounded-2xl bg-white/5 border-white/5 text-white/40 font-black text-xl italic" value={form.cost_price} onChange={e => setForm({ ...form, cost_price: Number(e.target.value) })} />
+                    </div>
+                    <div className="space-y-3">
+                       <Label className="text-[10px] font-black uppercase tracking-widest text-primary ml-1">Market Price (Retail)</Label>
+                       <Input type="number" className="h-16 rounded-2xl bg-primary/10 border-primary/30 text-white font-black text-3xl italic tracking-tighter shadow-2xl shadow-primary/10" value={form.price} onChange={e => setForm({ ...form, price: Number(e.target.value) })} />
+                    </div>
+                    <div className="space-y-3 flex flex-col justify-end pb-1 px-4 border border-white/5 rounded-2xl bg-white/[0.01]">
+                       <div className="flex items-center justify-between mb-2">
+                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Prescription Required</Label>
+                          <Switch 
+                            checked={form.prescription_required} 
+                            onCheckedChange={v => setForm({ ...form, prescription_required: v })} 
+                            className="data-[state=checked]:bg-rose-500"
+                          />
+                       </div>
+                    </div>
+                 </div>
+              </div>
+           </div>
 
-          <DialogFooter className="p-10 bg-white/[0.02] border-t border-white/5 overflow-hidden relative">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
-            <div className="flex w-full justify-between items-center">
-              <div className="flex items-center gap-3 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground italic">
-                <ShieldCheck className="h-4 w-4 text-primary" /> 256-Bit Encrypted Persistence
-              </div>
-              <div className="flex gap-4">
-                <Button variant="ghost" onClick={() => setDialogOpen(false)} className="h-14 rounded-2xl px-8 text-muted-foreground hover:text-white font-black uppercase text-[10px] tracking-widest transition-colors">Cancel Session</Button>
-                <Button onClick={handleSave} disabled={saving} className="h-14 rounded-2xl px-12 shadow-2xl shadow-primary/20 font-black uppercase text-[10px] tracking-[0.3em] bg-primary text-black hover:scale-105 transition-all">
-                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin text-black" />}
-                  {editingDrug ? "Authorize Changes" : "Confirm Registration"}
-                </Button>
-              </div>
-            </div>
-          </DialogFooter>
+           <DialogFooter className="p-0 border-t border-white/5">
+              <Button disabled={saving} onClick={handleSave} className="h-24 w-full rounded-none bg-primary text-white font-black uppercase text-xs tracking-[0.5em] gap-4 hover:bg-primary/90 transition-all click-compress">
+                 {saving ? <Loader2 className="animate-spin h-6 w-6" /> : <ShieldCheck className="h-6 w-6" />}
+                 {editingDrug ? "Commit Record Evolution" : "Finalize Asset Protocol"}
+              </Button>
+           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <EntityIntelligenceModal
+      <EntityIntelligenceModal 
         open={intelOpen}
-        onClose={() => setIntelOpen(false)}
-        type="drug"
-        data={intelData}
+        onOpenChange={setIntelOpen}
+        entityData={intelData}
         initialTab={intelTab}
       />
+
       <ScannerHubModal 
         open={scannerModalOpen} 
-        onClose={() => setScannerModalOpen(false)} 
+        onOpenChange={setScannerModalOpen}
         onScan={handleRemoteScan}
         sessionId={sessionId}
-        title="Pharma-Sync Bridge"
       />
     </div>
   );

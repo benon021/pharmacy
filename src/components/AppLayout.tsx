@@ -13,12 +13,15 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTenant } from "@/contexts/TenantContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { 
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { useLocation as useLocationRouter } from "react-router-dom";
 
 const adminNavigation = [
   {
@@ -108,6 +111,7 @@ const superAdminNavigation = [
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { role, signOut, user } = useAuth();
   const { activePharmacyName, isImpersonating, clearActivePharmacy } = useTenant();
+  const { theme, setTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -227,11 +231,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const sphereLogo = "/iridescent_sphere_logo_total_1776509962585.png";
 
   return (
-    <div className="flex min-h-screen bg-[#070710] selection:bg-primary/20 overflow-hidden">
-      {/* Immersive Background Aurora */}
-      <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-[10%] left-[10%] w-[600px] h-[600px] bg-primary/10 rounded-full blur-[140px] animate-pulse" />
-        <div className="absolute bottom-[10%] right-[10%] w-[600px] h-[600px] bg-accent/10 rounded-full blur-[140px] animate-pulse" style={{ animationDelay: '3s' }} />
+    <div className="flex min-h-screen bg-background text-foreground selection:bg-primary/20 overflow-hidden transition-colors duration-500">
+      {/* Aniq-Style Spatial Background */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <motion.div 
+          animate={{ 
+            scale: [1, 1.2, 1],
+            x: [0, 50, 0],
+            y: [0, 30, 0]
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-[-10%] left-[-10%] w-[800px] h-[800px] bg-primary/10 rounded-full blur-[160px] opacity-40 mix-blend-plus-lighter" 
+        />
+        <motion.div 
+          animate={{ 
+            scale: [1.2, 1, 1.2],
+            x: [0, -40, 0],
+            y: [0, -20, 0]
+          }}
+          transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute bottom-[-10%] right-[-10%] w-[800px] h-[800px] bg-accent/10 rounded-full blur-[160px] opacity-30 mix-blend-plus-lighter" 
+        />
       </div>
 
       {sidebarOpen && (
@@ -307,20 +327,42 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   .replace("Temporal", "Attendance");
 
                 return (
-                  <Link
+                  <motion.div
                     key={to}
-                    to={to}
-                    className={cn(
-                      "group flex items-center gap-4 rounded-2xl px-5 py-4 text-[10px] font-bold uppercase tracking-widest transition-all duration-300",
-                      isActive
-                        ? "bg-primary text-white shadow-[0_0_20px_rgba(var(--primary-rgb),0.3)] border border-primary/40"
-                        : "text-white/40 hover:text-white hover:bg-white/5",
-                      isCollapsed && "px-0 justify-center h-12 w-12 mx-auto"
-                    )}
+                    whileHover={{ x: 4 }}
+                    whileTap={{ scale: 0.97 }}
+                    className="relative"
                   >
-                    <Icon className={cn("h-4 w-4 flex-shrink-0", isActive ? "text-white" : "group-hover:text-primary transition-colors")} />
-                    {!isCollapsed && <span className="flex-1">{displayLabel}</span>}
-                  </Link>
+                    <Link
+                      to={to}
+                      className={cn(
+                        "relative z-10 group flex items-center gap-4 rounded-2xl px-5 py-4 text-[10px] font-bold uppercase tracking-widest transition-all duration-300",
+                        isActive
+                          ? "text-white"
+                          : "text-muted-foreground hover:text-foreground",
+                        isCollapsed && "px-0 justify-center h-12 w-12 mx-auto"
+                      )}
+                    >
+                      <Icon className={cn("h-4 w-4 flex-shrink-0 transition-colors", isActive ? "text-white" : "group-hover:text-primary")} />
+                      {!isCollapsed && <span className="flex-1">{displayLabel}</span>}
+                      
+                      {isActive && (
+                        <motion.div
+                          layoutId="sidebar-active"
+                          className="absolute inset-0 bg-primary/10 border border-primary/20 rounded-2xl -z-10 shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]"
+                          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                        />
+                      )}
+                      
+                      {isActive && !isCollapsed && (
+                        <motion.div
+                          layoutId="sidebar-dot"
+                          className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.8)]"
+                          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                        />
+                      )}
+                    </Link>
+                  </motion.div>
                 );
               })}
             </div>
@@ -392,32 +434,53 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
           
           <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 p-1 rounded-2xl bg-white/5 border border-white/5">
+              <button 
+                onClick={() => setTheme("light")}
+                className={cn(
+                  "p-2 rounded-xl transition-all",
+                  theme === "light" ? "bg-white text-black shadow-lg" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Sun size={14} />
+              </button>
+              <button 
+                onClick={() => setTheme("dark")}
+                className={cn(
+                  "p-2 rounded-xl transition-all",
+                  theme === "dark" ? "bg-white/10 text-white shadow-lg" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Moon size={14} />
+              </button>
+            </div>
+
             <Popover>
             <PopoverTrigger asChild>
-                <button className="h-12 w-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 hover:text-primary hover:border-primary/50 transition-all relative group">
+                <button className="h-12 w-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/50 transition-all relative group click-compress">
                 <Bell className="h-5 w-5 group-hover:animate-bounce" />
                 {unreadCount > 0 && (
                     <span className="absolute top-4 right-4 w-2 h-2 rounded-full bg-primary shadow-[0_0_10px_rgba(var(--primary-rgb),1)] animate-pulse" />
                 )}
                 </button>
             </PopoverTrigger>
-            <PopoverContent className="w-80 p-0 bg-[#0B0B2F] border-white/10 rounded-[2rem] shadow-3xl overflow-hidden mt-4" align="end">
+            <PopoverContent className="w-80 p-0 bg-popover/80 border-white/10 rounded-[2rem] shadow-3xl overflow-hidden mt-4 backdrop-blur-xl" align="end">
                 <div className="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between">
-                    <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white">Grid Alerts</h3>
+                    <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-foreground">System Alerts</h3>
                     {unreadCount > 0 && (
-                        <button onClick={markRead} className="text-[9px] font-bold text-primary uppercase hover:underline">Acknowledge All</button>
+                        <button onClick={markRead} className="text-[9px] font-bold text-primary uppercase hover:underline">Clear Loop</button>
                     )}
                 </div>
                 <div className="max-h-[350px] overflow-y-auto py-2 custom-scrollbar">
                 {notifications.length === 0 ? (
-                    <div className="py-16 text-center text-[10px] text-white/20 font-bold uppercase tracking-widest">Aura Clear</div>
+                    <div className="py-16 text-center text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Aura Clear</div>
                 ) : notifications.map(n => (
                     <div key={n.id} className={cn("px-6 py-4 border-b border-white/5 last:border-0 hover:bg-white/[0.05] transition-colors", !n.read && "bg-primary/5")}>
-                        <p className="text-[11px] font-bold text-white flex items-center gap-3 mb-1">
+                        <p className="text-[11px] font-bold text-foreground flex items-center gap-3 mb-1">
                             <span className={cn("h-2 w-2 rounded-full", n.type === "low_stock" ? "bg-red-500" : "bg-primary")} />
                             {n.title}
                         </p>
-                        <p className="text-[10px] text-[#A0A0FF]/40 leading-relaxed font-medium">{n.message}</p>
+                        <p className="text-[10px] text-muted-foreground leading-relaxed font-medium">{n.message}</p>
                     </div>
                 ))}
                 </div>
@@ -426,22 +489,35 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             
             <div className="h-10 w-px bg-white/5 hidden sm:block" />
             
-            <Link to="/profile" className="flex items-center gap-4 group">
+            <Link to="/profile" className="flex items-center gap-4 group click-compress">
               <div className="text-right hidden md:block">
-                <p className="text-[11px] font-bold text-white group-hover:text-primary transition-colors uppercase tracking-widest">{user?.full_name}</p>
-                <p className="text-[9px] text-[#A0A0FF]/40 uppercase font-semibold tracking-[0.3em]">{role.replace('_', ' ')}</p>
+                <p className="text-[11px] font-bold text-foreground group-hover:text-primary transition-colors uppercase tracking-widest">{user?.full_name}</p>
+                <p className="text-[9px] text-muted-foreground uppercase font-semibold tracking-[0.3em]">{role.replace('_', ' ')}</p>
               </div>
-              <div className="h-11 w-11 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center font-bold text-[10px] text-white/40 group-hover:border-primary/50 group-hover:text-white transition-all shadow-inner">
-                {user?.full_name?.[0] || "U"}
+              <div className="h-11 w-11 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center font-bold text-[10px] text-foreground/40 group-hover:border-primary/50 group-hover:text-primary transition-all shadow-inner overflow-hidden">
+                {user?.avatar_url ? (
+                  <img src={user.avatar_url} alt="Profile" className="h-full w-full object-cover" />
+                ) : (
+                  user?.full_name?.[0] || "U"
+                )}
               </div>
             </Link>
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto bg-transparent pb-32 md:pb-12 custom-scrollbar">
-          <div className="max-w-[1600px] mx-auto p-6 md:p-12 min-h-full flex flex-col relative z-10">
-            {children}
-          </div>
+          <AnimatePresence mode="wait">
+            <motion.div 
+              key={location.pathname}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="max-w-[1600px] mx-auto p-6 md:p-12 min-h-full flex flex-col relative z-10"
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </div>
 
         {/* Mobile Bottom Navigation Bar (Matching Reference Aesthetic) */}

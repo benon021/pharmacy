@@ -5,60 +5,60 @@
 
 @layer base {
   :root {
-    --background: 247 43% 4%;
-    --foreground: 210 40% 98%;
-
-    --card: 247 43% 6%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 247 43% 5%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 262 83% 58%; /* Radiant Purple */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 263.4 70% 50.4%;
     --primary-foreground: 210 40% 98%;
-
-    --secondary: 180 100% 50%; /* Electric Cyan */
-    --secondary-foreground: 247 43% 4%;
-
-    --muted: 247 20% 15%;
-    --muted-foreground: 215 20% 65%;
-
-    --accent: 180 100% 50%;
-    --accent-foreground: 247 43% 4%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 247 20% 15%;
-    --input: 247 20% 15%;
-    --ring: 262 83% 58%;
-
-    --radius: 0.75rem;
-
-    --sidebar-background: 247 43% 3%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 262 83% 58%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 247 20% 12%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 247 20% 12%;
-    --sidebar-ring: 262 83% 58%;
-
-    --success: 142 71% 45%;
-    --warning: 38 92% 50%;
-    --info: 217 91% 60%;
-
-    --shadow-glow: 0 0 40px hsla(var(--primary) / 0.2);
-    --shadow-premium: 0 10px 40px -10px rgb(0 0 0 / 0.5);
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+    --radius: 1.5rem;
+    
+    /* Aniq UI Spatial Tokens */
+    --aniq-surface: rgba(255, 255, 255, 0.03);
+    --aniq-border: rgba(255, 255, 255, 0.08);
+    --aniq-glow-primary: rgba(168, 85, 247, 0.15);
+    --aniq-glow-accent: rgba(236, 72, 153, 0.1);
 
     --font-heading: 'Space Grotesk', sans-serif;
     --font-body: 'Plus Jakarta Sans', sans-serif;
   }
 
-  .dark {
-    --background: 247 43% 3%;
-    --foreground: 210 40% 98%;
-    --border: 247 20% 10%;
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 263.4 70% 50.4%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+    
+    --aniq-surface: rgba(0, 0, 0, 0.02);
+    --aniq-border: rgba(0, 0, 0, 0.05);
   }
 }
 
@@ -66,26 +66,41 @@
   * {
     @apply border-border;
   }
-
   body {
-    @apply bg-background text-foreground font-body antialiased;
-    background-image: none;
+    @apply bg-background text-foreground font-body antialiased selection:bg-primary/20;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
   }
-
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading tracking-tight;
   }
 }
 
 @layer components {
-  .premium-card {
-    @apply relative overflow-hidden bg-white/[0.03] border border-white/10 rounded-3xl p-6 transition-all duration-500 backdrop-blur-xl;
-    box-shadow: var(--shadow-premium);
+  .aniq-glass {
+    @apply bg-white/[0.03] dark:bg-white/[0.02] backdrop-blur-3xl border border-white/10 dark:border-white/5;
   }
 
-  .premium-card:hover {
-    @apply border-primary/40 bg-white/[0.05];
-    box-shadow: var(--shadow-glow);
+  .premium-card {
+    @apply relative overflow-hidden rounded-[2rem] p-6 bg-white/[0.03] border border-white/5 backdrop-blur-3xl transition-all duration-500 hover:border-primary/20;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  }
+
+  .stat-value {
+    @apply font-heading font-black text-4xl tracking-tighter italic;
+  }
+
+  .aurora-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-tr from-primary via-[#A0A0FF] to-accent animate-aurora;
+    background-size: 200% auto;
+  }
+
+  /* Aniq Click Effect */
+  .click-compress {
+    @apply active:scale-95 transition-transform duration-200 cursor-pointer;
+  }
+
+  .hover-lift {
+    @apply hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all duration-500;
   }
 
   .glass-pill {

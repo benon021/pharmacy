@@ -1,21 +1,20 @@
 import { useEffect, useState } from "react";
 import { localDb, Sale, Drug, Expense } from "@/lib/db";
-import { Link } from "react-router-dom";
-import { Package, ShoppingCart, Users, AlertTriangle, TrendingUp, DollarSign, Activity, CalendarDays, ChevronRight, Pill, ArrowRight, BarChart3, Wallet } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from "recharts";
+import { Link, useNavigate } from "react-router-dom";
+import { 
+  Package, ShoppingCart, Users, AlertTriangle, TrendingUp, 
+  DollarSign, Activity, CalendarDays, ChevronRight, Pill, 
+  ArrowRight, BarChart3, Wallet, ShieldCheck, AlertCircle 
+} from "lucide-react";
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
+  ResponsiveContainer, BarChart, Bar, Cell 
+} from "recharts";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-
-
-interface Stats {
-  totalDrugs: number;
-  lowStockCount: number;
-  totalSalesToday: number;
-  totalRevenue: number;
-  totalSellers: number;
-  expiringCount: number;
-  expiredCount: number;
-}
+import { motion, AnimatePresence } from "framer-motion";
+import StatsCard from "@/components/StatsCard";
+import { Button } from "@/components/ui/button";
 
 function getDaysUntilExpiry(expiryDate: string | null): number | null {
   if (!expiryDate) return null;
@@ -25,334 +24,231 @@ function getDaysUntilExpiry(expiryDate: string | null): number | null {
 }
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
+
+  // Optimized Data Fetching
   const { data: drugs = [] } = useQuery({ queryKey: ["drugs"], queryFn: () => localDb.drugs.getAll() });
   const { data: sales = [] } = useQuery({ queryKey: ["sales"], queryFn: () => localDb.sales.getAll() });
-  const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: () => localDb.auth.getAll() });
+  const { data: users = [] } = useQuery({ queryKey: ["users"], queryFn: () => localDb.users.getAll() });
   const { data: expenses = [] } = useQuery({ queryKey: ["expenses"], queryFn: () => localDb.expenses.getAll() });
   const { data: recentSales = [] } = useQuery({ queryKey: ["recent-sales"], queryFn: () => localDb.sales.getRecent(5) });
 
-  const [stats, setStats] = useState<Stats>({
-    totalDrugs: 0, lowStockCount: 0, totalSalesToday: 0, totalRevenue: 0, totalSellers: 0, expiringCount: 0, expiredCount: 0
-  });
-  const [chartData, setChartData] = useState<any[]>([]);
-  const [inventoryChart, setInventoryChart] = useState<any[]>([]);
-  const [lowStockDrugs, setLowStockDrugs] = useState<Drug[]>([]);
-  const [expiringDrugs, setExpiringDrugs] = useState<Drug[]>([]);
+  // Dashboard Stats Aggregation
+  const stats = (() => {
+    const today = new Date().toISOString().split("T")[0];
+    const todaySales = sales.filter(s => s.created_at.startsWith(today));
+    const activeDrugs = drugs.filter(d => d.is_active);
+    const lowStock = activeDrugs.filter(d => d.stock <= (d.reorder_level || 10));
+    const expiring = activeDrugs.filter(d => {
+      const days = getDaysUntilExpiry(d.expiry_date);
+      return days !== null && days > 0 && days <= 90;
+    });
+    const expired = activeDrugs.filter(d => {
+      const days = getDaysUntilExpiry(d.expiry_date);
+      return days !== null && days <= 0;
+    });
 
-
-  useEffect(() => {
-    const calculateStats = () => {
-      const today = new Date().toISOString().split("T")[0];
-      
-      const todaySales = sales.filter(s => s.created_at.startsWith(today));
-      const activeDrugs = drugs.filter(d => d.is_active);
-      const lowStock = activeDrugs.filter(d => d.stock <= (d.reorder_level || 10));
-      const expiring = activeDrugs.filter(d => {
-        const days = getDaysUntilExpiry(d.expiry_date);
-        return days !== null && days <= 90;
-      });
-      const expired = activeDrugs.filter(d => {
-        const days = getDaysUntilExpiry(d.expiry_date);
-        return days !== null && days <= 0;
-      });
-
-      setStats({
-        totalDrugs: activeDrugs.length,
-        lowStockCount: lowStock.length,
-        totalSalesToday: todaySales.length,
-        totalRevenue: sales.reduce((sum, s) => sum + Number(s.total_amount), 0),
-        totalSellers: users.filter(u => u.role === "seller").length,
-        expiringCount: expiring.length,
-        expiredCount: expired.length,
-      });
-
-      setLowStockDrugs(lowStock.slice(0, 5));
-      setExpiringDrugs(expiring.sort((a, b) => {
-        const da = getDaysUntilExpiry(a.expiry_date) ?? 999;
-        const db = getDaysUntilExpiry(b.expiry_date) ?? 999;
-        return da - db;
-      }).slice(0, 5));
-
-      const last7 = Array.from({ length: 7 }, (_, i) => {
-        const d = new Date();
-        d.setDate(d.getDate() - (6 - i));
-        return d.toISOString().split("T")[0];
-      });
-
-      const chartD = last7.map(day => ({
-        day: day.slice(8), 
-        sales: sales.filter(s => s.created_at.startsWith(day)).reduce((sum, s) => sum + Number(s.total_amount), 0),
-        expenses: expenses.filter(e => e.created_at.startsWith(day)).reduce((sum, e) => sum + Number(e.amount), 0),
-      }));
-      setChartData(chartD);
-
-      setInventoryChart([
-        { name: 'Healthy', value: drugs.filter(d => d.is_active && d.stock > (d.reorder_level || 10)).length },
-        { name: 'Low', value: lowStock.length },
-        { name: 'Expired', value: expired.length },
-      ]);
+    return {
+      totalRevenue: sales.reduce((sum, s) => sum + Number(s.total_amount), 0),
+      totalDrugs: activeDrugs.length,
+      lowStockCount: lowStock.length,
+      todaySalesCount: todaySales.length,
+      totalSellers: users.filter(u => u.role === "seller").length,
+      expiringCount: expiring.length,
+      expiredCount: expired.length,
+      lowStockPreview: lowStock.slice(0, 4),
+      expiringPreview: expiring.sort((a, b) => (getDaysUntilExpiry(a.expiry_date) ?? 999) - (getDaysUntilExpiry(b.expiry_date) ?? 999)).slice(0, 4)
     };
-    calculateStats();
-  }, [drugs, sales, users, expenses]);
+  })();
 
-
-  const statCards = [
-    { label: "Revenue", value: `KES ${stats.totalRevenue.toLocaleString()}`, icon: DollarSign, color: "text-primary" },
-    { label: "Total Medicines", value: stats.totalDrugs, icon: Package, color: "text-slate-600" },
-    { label: "Low Stock", value: stats.lowStockCount, icon: AlertTriangle, color: "text-red-600" },
-    { label: "Sales Today", value: stats.totalSalesToday, icon: ShoppingCart, color: "text-blue-600" },
-  ];
+  // Chart Data Preparation
+  const chartData = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const day = d.toISOString().split("T")[0];
+    return {
+      name: d.toLocaleDateString('en-US', { weekday: 'short' }),
+      revenue: sales.filter(s => s.created_at.startsWith(day)).reduce((sum, s) => sum + Number(s.total_amount), 0),
+      expense: expenses.filter(e => e.created_at.startsWith(day)).reduce((sum, e) => sum + Number(e.amount), 0),
+    };
+  });
 
   return (
-    <div className="space-y-6 animate-fade-in pb-10">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
-          Pharmacy Dashboard
-        </h1>
-        <p className="text-muted-foreground text-base">Key insights into branch performance and stock levels.</p>
+    <div className="space-y-12">
+      {/* Cinematic Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="space-y-2">
+          <motion.h1 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="text-4xl md:text-5xl font-black italic tracking-tighter text-foreground uppercase"
+          >
+            Terminal <span className="aurora-text">Intelligence</span>
+          </motion.h1>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-black text-emerald-500 tracking-[0.2em] uppercase">
+              <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Node Active
+            </div>
+            <span className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground">
+               Grid: LMX-021-PHARMA
+            </span>
+          </div>
+        </div>
+        
+        <div className="flex gap-4">
+           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button 
+                onClick={() => navigate("/seller/new-sale")} 
+                className="h-14 px-10 rounded-2xl bg-primary text-white font-black uppercase tracking-widest text-[10px] shadow-2xl shadow-primary/20 hover:shadow-primary/40 transition-all flex items-center gap-3 border border-primary/50"
+              >
+                <ShoppingCart size={16} /> Launch POS
+              </Button>
+           </motion.div>
+        </div>
       </div>
 
-      {/* Point of Sale Quick Access */}
-      <Link 
-        to="/seller/new-sale" 
-        className="group relative flex items-center justify-between p-6 rounded-lg bg-primary/[0.03] border border-primary/20 hover:bg-primary/[0.05] transition-all overflow-hidden shadow-sm"
-      >
-        <div className="flex items-center gap-6 relative z-10">
-          <div className="h-14 w-14 rounded-lg bg-primary flex items-center justify-center text-white shadow-md">
-            <ShoppingCart className="h-7 w-7" />
-          </div>
-          <div className="space-y-0.5">
-            <h2 className="text-xl font-bold text-foreground">Point of Sale (POS)</h2>
-            <p className="text-sm text-primary font-medium flex items-center gap-1.5">
-               Open the transaction terminal <ArrowRight className="h-3.5 w-3.5" />
-            </p>
-          </div>
-        </div>
-        <div className="hidden md:flex h-10 px-6 items-center gap-2 rounded-md bg-primary text-white font-bold uppercase tracking-widest text-[10px] shadow-sm">
-          New Sale
-        </div>
-      </Link>
-
-      {/* Stat Cards */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat, i) => (
-          <div key={stat.label} className="premium-card group" style={{ animationDelay: `${i * 100}ms` }}>
-            <div className="flex items-start justify-between">
-              <div className="space-y-2">
-                <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#A0A0FF]/40">{stat.label}</p>
-                <div className="stat-value text-white group-hover:aurora-text transition-all duration-500">{stat.value}</div>
-              </div>
-              <div className={cn("p-4 rounded-2xl bg-white/5 border border-white/10 group-hover:border-primary/50 transition-all", stat.color)}>
-                <stat.icon size={20} />
-              </div>
-            </div>
-            {/* Subtle Aurora Glow on Hover */}
-            <div className="absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
+      {/* Aniq-Style Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        {[
+          { title: "Net Revenue", value: `UGX ${stats.totalRevenue.toLocaleString()}`, icon: DollarSign, trend: { value: "12.4%", positive: true }, color: "primary" },
+          { title: "Global Stock", value: stats.totalDrugs, icon: Package, trend: { value: "Active", positive: true }, color: "accent" },
+          { title: "Staff Nodes", value: stats.totalSellers, icon: Users, trend: { value: "Sync", positive: true }, color: "primary" },
+          { title: "System Alerts", value: stats.lowStockCount + stats.expiredCount, icon: Activity, trend: { value: "Priority", positive: false }, color: "accent" },
+        ].map((stat, idx) => (
+          <motion.div
+            key={stat.title}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.1, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <StatsCard {...stat} />
+          </motion.div>
         ))}
       </div>
 
-      {/* Alert Banners */}
-      {(stats.expiredCount > 0 || stats.lowStockCount > 0) && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {stats.expiredCount > 0 && (
-            <Link to="/admin/expiry" className="flex items-center gap-4 p-4 rounded-lg bg-red-50 dark:bg-red-500/5 border border-red-200 dark:border-red-500/20 hover:shadow-md transition-all group">
-              <div className="h-10 w-10 rounded-md bg-red-100 dark:bg-red-500/10 flex items-center justify-center border border-red-200 dark:border-red-500/20">
-                <CalendarDays className="h-5 w-5 text-red-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-red-900 dark:text-red-400">{stats.expiredCount} Expired Medicine{stats.expiredCount > 1 ? "s" : ""}</p>
-                <p className="text-[11px] text-red-700 dark:text-red-400/60">Remove items from shelves immediately.</p>
-              </div>
-              <ChevronRight className="h-4 w-4 text-red-400" />
-            </Link>
-          )}
-          {stats.expiringCount > 0 && (
-            <Link to="/admin/expiry" className="flex items-center gap-4 p-4 rounded-lg bg-amber-50 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/20 hover:shadow-md transition-all group">
-              <div className="h-10 w-10 rounded-md bg-amber-100 dark:bg-amber-500/10 flex items-center justify-center border border-amber-200 dark:border-amber-500/20">
-                <AlertTriangle className="h-5 w-5 text-amber-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-amber-900 dark:text-amber-400">{stats.expiringCount} Item{stats.expiringCount > 1 ? "s" : ""} Expiring Soon</p>
-                <p className="text-[11px] text-amber-700 dark:text-amber-400/60">Within 90 days — check shelf placement.</p>
-              </div>
-              <ChevronRight className="h-4 w-4 text-amber-400" />
-            </Link>
-          )}
-        </div>
-      )}
-
-      {/* Financial Trends + Transactions */}
-      <div className="grid gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3 bg-white dark:bg-slate-900 border border-border p-6 rounded-lg shadow-sm">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-bold">Financial Trends</h2>
+      {/* Main Insights Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-20">
+        
+        {/* Financial Flow - Glass Panel */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.4 }}
+          className="lg:col-span-2 premium-card bg-white/[0.01] border-white/5 flex flex-col"
+        >
+          <div className="p-8 border-b border-white/5 flex items-center justify-between">
+            <div className="space-y-1">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Financial Velocity</h3>
+              <p className="text-xs font-bold text-muted-foreground italic">7-Day Transactional Flow</p>
             </div>
-            <div className="flex items-center gap-4">
-               <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary uppercase">
-                 <div className="h-2 w-2 rounded-full bg-primary" /> Revenue
+            <div className="flex gap-4">
+               <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-primary">
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary" /> Revenue
                </div>
-               <div className="flex items-center gap-1.5 text-[10px] font-bold text-red-500 uppercase">
-                 <div className="h-2 w-2 rounded-full bg-red-500" /> Expense
+               <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+                  <div className="h-1.5 w-1.5 rounded-full bg-white/20" /> Expense
                </div>
             </div>
           </div>
           
-          <div className="h-[300px] w-full mt-4">
+          <div className="flex-1 p-8 h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} barGap={8}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
                 <XAxis 
-                  dataKey="day" 
+                  dataKey="name" 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: "#71717a", fontSize: 10, fontWeight: 'bold' }}
+                  tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: 800 }} 
                 />
                 <YAxis 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fill: "#71717a", fontSize: 10 }}
+                  tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }}
                 />
                 <Tooltip 
-                  cursor={{ fill: 'rgba(255,255,255,0.02)' }}
-                  contentStyle={{ 
-                    backgroundColor: "rgba(9, 9, 11, 0.95)", 
-                    borderRadius: "16px", 
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    backdropFilter: "blur(20px)",
-                    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)"
-                   }} 
+                  contentStyle={{ backgroundColor: 'rgba(9,9,11,0.95)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', color: '#fff' }}
+                  itemStyle={{ color: '#fff', fontSize: '10px', textTransform: 'uppercase', fontWeight: 900 }}
                 />
-                <Bar 
-                  dataKey="sales" 
-                  fill="hsl(var(--primary))" 
-                  radius={[4, 4, 0, 0]} 
-                  animationDuration={1500}
+                <Area 
+                  type="monotone" 
+                  dataKey="revenue" 
+                  stroke="hsl(var(--primary))" 
+                  strokeWidth={4}
+                  fillOpacity={1} 
+                  fill="url(#colorRev)" 
                 />
-                <Bar 
-                  dataKey="expenses" 
-                  fill="#ef4444" 
-                  radius={[4, 4, 0, 0]} 
-                  animationDuration={1500}
-                />
-              </BarChart>
+              </AreaChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="lg:col-span-2 premium-card">
-          <div className="flex items-center gap-2 mb-6">
-            <ShoppingCart className="h-5 w-5 text-accent" />
-            <h2 className="text-lg font-bold">Recent Activity</h2>
-          </div>
-          
-          <div className="space-y-4">
-            {recentSales.length === 0 ? (
-              <div className="text-center py-10 text-muted-foreground text-sm">No recent transactions</div>
-            ) : recentSales.map((sale, i) => (
-              <div key={sale.id} className="flex items-center justify-between p-3 rounded-xl bg-card dark:bg-white/5 border border-border dark:border-white/5 hover:border-border dark:border-white/10 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 flex items-center justify-center rounded-full bg-primary/10 text-primary font-bold">
-                    {sale.customer_name?.[0] || "W"}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">{sale.customer_name || "Walk-in Customer"}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{sale.payment_method}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-foreground dark:text-white">KES {sale.total_amount.toLocaleString()}</p>
-                  <p className="text-[10px] text-muted-foreground">{new Date(sale.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                </div>
+        {/* Intelligence feed / Right Rail */}
+        <div className="space-y-8">
+           {/* Recent Sales Rail */}
+           <motion.div 
+             initial={{ opacity: 0, x: 20 }}
+             animate={{ opacity: 1, x: 0 }}
+             transition={{ delay: 0.5 }}
+             className="premium-card bg-white/[0.01] flex flex-col"
+           >
+              <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40">Event Log</h3>
+                <ShoppingCart size={14} className="text-primary" />
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Low Stock + Expiry Alerts */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Low Stock Alert Panel */}
-        <div className="premium-card">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              <h2 className="text-lg font-bold">Low Stock Alerts</h2>
-            </div>
-            <Link to="/admin/drugs" className="text-[10px] font-bold uppercase tracking-widest text-primary hover:text-foreground dark:text-white transition-colors">
-              View Catalog →
-            </Link>
-          </div>
-          <div className="space-y-3">
-            {lowStockDrugs.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">All stock levels are healthy ✓</p>
-            ) : lowStockDrugs.map(drug => (
-              <div key={drug.id} className="flex items-center justify-between p-3 rounded-xl bg-card dark:bg-white/5 border border-border dark:border-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-red-500/10 text-red-500 border border-red-500/20">
-                    <Pill className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground dark:text-white">{drug.name}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Threshold: {drug.reorder_level}</p>
-
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-black text-red-500 tabular-nums">{drug.stock}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase">{drug.unit}</p>
-                </div>
+              <div className="p-4 space-y-4">
+                {recentSales.map((sale, i) => (
+                  <motion.div 
+                    key={sale.id}
+                    whileHover={{ x: 5 }}
+                    className="flex items-center gap-4 p-3 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-primary/20 transition-all cursor-pointer group"
+                  >
+                    <div className="h-10 w-10 rounded-xl bg-white/5 flex items-center justify-center font-black text-xs text-white/40 group-hover:text-primary transition-colors">
+                      {sale.customer_name?.[0] || "W"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                       <p className="text-[11px] font-black text-white truncate">{sale.customer_name || "Walk-In Entity"}</p>
+                       <p className="text-[9px] font-bold text-muted-foreground uppercase opacity-40">{new Date(sale.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                    <div className="text-right">
+                       <p className="text-[11px] font-black text-primary italic">UGX {sale.total_amount.toLocaleString()}</p>
+                    </div>
+                  </motion.div>
+                ))}
               </div>
-            ))}
-          </div>
+              <Button variant="ghost" className="m-4 h-10 rounded-xl border border-white/5 text-[9px] font-black uppercase tracking-widest text-white/30 hover:text-white">
+                View Full Ledger
+              </Button>
+           </motion.div>
+
+           {/* Quick Action */}
+           <Link to="/admin/drugs" className="block">
+             <motion.div 
+               whileHover={{ scale: 1.02 }}
+               whileTap={{ scale: 0.98 }}
+               className="p-8 rounded-[2rem] bg-gradient-to-br from-primary to-accent text-white shadow-2xl shadow-primary/20 relative overflow-hidden group"
+             >
+                <div className="absolute top-0 right-0 p-4 opacity-20 transform translate-x-4 -translate-y-4 group-hover:translate-x-0 group-hover:translate-y-0 transition-transform">
+                   <Package size={80} />
+                </div>
+                <div className="relative z-10">
+                   <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-60">Inventory Bridge</p>
+                   <h4 className="text-xl font-black italic uppercase italic tracking-tighter">Manifest Stock</h4>
+                   <div className="mt-4 flex items-center gap-2 text-[9px] font-black uppercase tracking-widest bg-white/20 w-fit px-3 py-1 rounded-full">
+                      Sync Now <ArrowRight size={10} />
+                   </div>
+                </div>
+             </motion.div>
+           </Link>
         </div>
 
-        {/* Expiry Alert Panel */}
-        <div className="premium-card">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-5 w-5 text-amber-400" />
-              <h2 className="text-lg font-bold">Expiry Alerts</h2>
-            </div>
-            <Link to="/admin/expiry" className="text-[10px] font-bold uppercase tracking-widest text-primary hover:text-foreground dark:text-white transition-colors">
-              Full Tracker →
-            </Link>
-          </div>
-          <div className="space-y-3">
-            {expiringDrugs.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">No expiring drugs in the next 90 days ✓</p>
-            ) : expiringDrugs.map(drug => {
-              const days = getDaysUntilExpiry(drug.expiry_date);
-              const isExpired = days !== null && days <= 0;
-              return (
-                <div key={drug.id} className="flex items-center justify-between p-3 rounded-xl bg-card dark:bg-white/5 border border-border dark:border-white/5">
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "h-10 w-10 flex items-center justify-center rounded-xl border",
-                      isExpired ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-amber-400/10 text-amber-400 border-amber-400/20"
-                    )}>
-                      <CalendarDays className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-foreground dark:text-white">{drug.name}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        Expires: {drug.expiry_date ? new Date(drug.expiry_date).toLocaleDateString("en-KE", { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className={cn(
-                    "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border",
-                    isExpired ? "bg-red-500/10 text-red-500 border-red-500/20" : "bg-amber-400/10 text-amber-400 border-amber-400/20"
-                  )}>
-                    {isExpired ? `${Math.abs(days!)}d overdue` : `${days}d left`}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
       </div>
     </div>
   );
