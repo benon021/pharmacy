@@ -500,6 +500,8 @@ export default function DrugCatalog() {
             })}
           </TableBody>
         </Table>
+          </div>
+        </div>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

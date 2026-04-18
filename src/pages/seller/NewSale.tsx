@@ -417,7 +417,7 @@ export default function NewSale() {
             </div>
           </div>
 
-          <div className="grid gap-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="grid gap-3 flex-1 overflow-y-auto pr-2 custom-scrollbar min-h-[400px]">
             {isLoading ? (
               <div className="text-center py-20 premium-card">
                 <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto mb-4" />
@@ -537,7 +537,7 @@ export default function NewSale() {
                   <p className="text-sm font-bold uppercase tracking-[0.2em] text-foreground dark:text-white">Cart Awaiting Scan</p>
                 </div>
               ) : (
-                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-3 custom-scrollbar">
+                <div className="space-y-4 flex-1 overflow-y-auto pr-3 custom-scrollbar min-h-[200px]">
                   {cart.map(item => (
                     <div key={item.drug_id} className={cn(
                       "flex items-center gap-4 p-4 rounded-2xl border transition-all",

@@ -12,7 +12,6 @@ import {
   Clock, Megaphone, LifeBuoy, Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useTheme } from "@/contexts/ThemeContext";
 import { useTenant } from "@/contexts/TenantContext";
 import { 
   Popover,
@@ -26,6 +25,7 @@ const adminNavigation = [
     heading: "Operations",
     links: [
       { to: "/admin", icon: LayoutDashboard, label: "Dashboard" },
+      { to: "/messaging", icon: MessageSquare, label: "Uplink Hub" },
       { to: "/admin/sales", icon: ShoppingCart, label: "Sales History" },
       { to: "/seller/new-sale", icon: Zap, label: "POS Terminal" },
     ]
@@ -62,6 +62,7 @@ const sellerNavigation = [
     heading: "Terminal",
     links: [
       { to: "/seller", icon: LayoutDashboard, label: "Overview" },
+      { to: "/messaging", icon: MessageSquare, label: "Admin Uplink" },
       { to: "/seller/new-sale", icon: Zap, label: "Launch POS" },
       { to: "/seller/history", icon: History, label: "My Shift Ledger" },
     ]
@@ -105,7 +106,6 @@ const superAdminNavigation = [
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { role, signOut, user } = useAuth();
   const { activePharmacyName, isImpersonating, clearActivePharmacy } = useTenant();
-  const { theme, setTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -233,9 +233,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col bg-[#0B0E14] border-r border-border dark:border-white/5 transition-all duration-300 md:h-screen md:sticky md:top-0 md:translate-x-0 overflow-y-auto custom-scrollbar overflow-x-hidden",
-          sidebarOpen ? "translate-x-0 w-[280px]" : "-translate-x-full w-[280px]",
-          !isCollapsed ? "md:w-[280px]" : "md:w-[90px]"
+          "fixed inset-y-0 left-0 z-50 flex flex-col bg-[#0B0E14]/80 backdrop-blur-2xl border-white/5 transition-all duration-300 md:h-[calc(100vh-2rem)] md:m-4 md:rounded-[2.5rem] md:sticky md:top-4 md:translate-x-0 overflow-y-auto custom-scrollbar overflow-x-hidden shadow-2xl md:border",
+          sidebarOpen ? "translate-x-0 w-[240px]" : "-translate-x-full w-[240px]",
+          !isCollapsed ? "md:w-[260px]" : "md:w-[90px]"
         )}
       >
         <div className={cn("flex items-center gap-3 py-6 px-4", isCollapsed && "md:px-0 md:justify-center transition-all")}>
@@ -329,7 +329,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         )}
 
         <div className={cn("mt-auto p-4 m-4 rounded-2xl bg-white/[0.03] border border-white/5 transition-all", isCollapsed && "m-0 rounded-none bg-transparent border-none p-2")}>
-          <div className={cn("flex items-center gap-3 mb-4", isCollapsed && "justify-center mb-2")}>
+          <Link to="/profile" className={cn("flex items-center gap-3 mb-4 transition-all hover:bg-white/5 p-2 rounded-xl", isCollapsed && "justify-center mb-2")}>
             <div className="flex-shrink-0 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 border border-white/10 text-xs font-black text-primary uppercase overflow-hidden shadow-inner">
               {user?.avatar_url ? (
                 <img src={user.avatar_url} alt="Profile" className="h-full w-full object-cover" />
@@ -345,7 +345,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <p className="text-[10px] text-primary/60 truncate font-black uppercase tracking-[0.2em]">{role}</p>
               </div>
             )}
-          </div>
+          </Link>
           <Button
             variant="ghost"
             size="sm"
@@ -361,7 +361,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-background">
+      <main className="flex-1 flex flex-col min-w-0 h-[100dvh] overflow-hidden bg-background">
         {isImpersonating && (
           <div className="bg-primary/20 border-b border-primary/20 py-2.5 px-6 flex items-center justify-between animate-in slide-in-from-top duration-700 backdrop-blur-md">
             <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-white!">
@@ -395,20 +395,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-                <button 
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="h-12 w-12 rounded-xl bg-white/5 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors hover:bg-primary/5"
-                >
-                {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-                </button>
                 <Popover>
                 <PopoverTrigger asChild>
-                    <button className="h-12 w-12 rounded-xl bg-white/5 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors relative hover:bg-primary/5">
+                    <button className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-white/5 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors relative hover:bg-primary/5">
                     <Bell className="h-5 w-5" />
                     {unreadCount > 0 && (
-                        <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-primary animate-pulse" />
+                        <span className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                     )}
                     </button>
                 </PopoverTrigger>
@@ -443,12 +437,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             
             <div className="h-10 w-px bg-white/10 hidden sm:block" />
             
-            <div className="flex items-center gap-4">
+            <Link to="/profile" className="flex items-center gap-4 group">
               <div className="text-right hidden sm:block">
-                <p className="text-xs font-black text-white italic uppercase tracking-tighter">{user?.full_name || "Enterprise User"}</p>
+                <p className="text-xs font-black text-white italic uppercase tracking-tighter group-hover:text-primary transition-colors">{user?.full_name || "Enterprise User"}</p>
                 <p className="text-[10px] text-primary/60 font-black uppercase tracking-[0.2em]">{role}</p>
               </div>
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-tr from-primary to-orange-600 p-[1.5px] shadow-lg shadow-primary/10">
+              <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-gradient-to-tr from-primary to-orange-600 p-[1.5px] shadow-lg shadow-primary/10 group-hover:scale-110 transition-transform">
                 <div className="h-full w-full rounded-[11px] bg-[#0B0E14] flex items-center justify-center font-black text-xs text-primary overflow-hidden">
                   {user?.avatar_url ? (
                     <img src={user.avatar_url} alt="Profile" className="h-full w-full object-cover" />
@@ -457,14 +451,36 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   )}
                 </div>
               </div>
-            </div>
+            </Link>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar scroll-smooth bg-gradient-to-b from-[#0a0a0c] to-background">
-          <div className="max-w-[1600px] mx-auto p-4 md:p-8 lg:p-12">
+        <div className="flex-1 overflow-y-auto custom-scrollbar scroll-smooth bg-gradient-to-b from-[#0a0a0c] to-background pb-32 md:pb-8">
+          <div className="max-w-[1920px] mx-auto p-4 md:p-8 lg:p-12 min-h-full flex flex-col">
             {children}
           </div>
+        </div>
+
+        {/* Mobile Bottom Navigation Bar */}
+        <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] glass-panel rounded-full h-16 z-50 px-6 flex items-center justify-between shadow-2xl border-white/10">
+           {navigation[0].links.concat(navigation[1].links.slice(0, 1)).slice(0, 4).map((link) => {
+             const Icon = link.icon;
+             const isActive = location.pathname === link.to;
+             return (
+               <Link key={link.to} to={link.to} className={cn(
+                 "p-3 rounded-full transition-all",
+                 isActive ? "bg-primary text-black scale-110" : "text-muted-foreground"
+               )}>
+                 <Icon size={20} />
+               </Link>
+             );
+           })}
+           <Link to="/seller/settings" className={cn(
+             "p-3 rounded-full transition-all text-muted-foreground",
+             location.pathname.includes("settings") && "bg-primary text-black scale-110"
+           )}>
+              <Settings size={20} />
+           </Link>
         </div>
       </main>
     </div>

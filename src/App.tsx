@@ -40,6 +40,8 @@ const BillingManagement = lazy(() => import("./pages/admin/BillingManagement"));
 const PlatformPulse = lazy(() => import("./pages/admin/PlatformPulse"));
 const DistributionNodes = lazy(() => import("./pages/admin/DistributionNodes"));
 const RemoteScanner = lazy(() => import("./pages/shared/RemoteScanner"));
+const MessagingHub = lazy(() => import("./pages/shared/MessagingHub"));
+const ProfileHub = lazy(() => import("./pages/shared/ProfileHub"));
 
 
 const queryClient = new QueryClient();
@@ -75,7 +77,10 @@ const App = () => (
                   <Route path="/admin/attendance" element={<ProtectedRoute requiredRole="admin"><AppLayout><StaffAttendance /></AppLayout></ProtectedRoute>} />
                   <Route path="/admin/loyalty" element={<ProtectedRoute requiredRole="admin"><AppLayout><CustomerLoyalty /></AppLayout></ProtectedRoute>} />
                   <Route path="/admin/settings" element={<ProtectedRoute requiredRole="admin"><AppLayout><Settings /></AppLayout></ProtectedRoute>} />
-                  <Route path="/support" element={<ProtectedRoute requiredRole={["super_admin", "admin", "seller"]}><AppLayout><SupportCenter /></AppLayout></ProtectedRoute>} />
+                  <Route path="/messaging" element={<ProtectedRoute requiredRole={["super_admin", "admin", "seller"]}><AppLayout><MessagingHub /></AppLayout></ProtectedRoute>} />
+                  <Route path="/support" element={<ProtectedRoute requiredRole={["super_admin", "admin", "seller"]}><AppLayout><MessagingHub /></AppLayout></ProtectedRoute>} />
+                  <Route path="/profile" element={<ProtectedRoute requiredRole={["super_admin", "admin", "seller"]}><AppLayout><ProfileHub /></AppLayout></ProtectedRoute>} />
+                  <Route path="/profile/:userId" element={<ProtectedRoute requiredRole={["super_admin", "admin", "seller"]}><AppLayout><ProfileHub /></AppLayout></ProtectedRoute>} />
 
                   {/* Super Admin routes */}
                   <Route path="/super-admin" element={<ProtectedRoute requiredRole="super_admin"><AppLayout><SuperAdminDashboard /></AppLayout></ProtectedRoute>} />
