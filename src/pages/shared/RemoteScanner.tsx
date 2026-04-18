@@ -288,22 +288,39 @@ export default function RemoteScanner() {
           <div className="space-y-6">
             {!window.isSecureContext && window.location.hostname !== "localhost" && (
               <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 space-y-3"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-8 rounded-[2.5rem] bg-gradient-to-br from-amber-500/20 to-red-500/10 border border-amber-500/30 space-y-6 shadow-2xl"
               >
-                <div className="flex items-center gap-3 text-amber-500">
-                  <AlertCircle size={18} />
-                  <h3 className="text-[10px] font-black uppercase tracking-widest">Insecure Context Detected</h3>
+                <div className="flex flex-col items-center text-center gap-4">
+                  <div className="h-20 w-20 rounded-[2rem] bg-amber-500 text-black flex items-center justify-center shadow-xl shadow-amber-500/20">
+                    <ShieldAlert size={40} />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-black uppercase tracking-tighter italic">Browser Security Block</h3>
+                    <p className="text-[11px] text-amber-200/80 leading-relaxed font-bold uppercase tracking-widest">
+                      Camera requires a SECURE (HTTPS) connection to function on mobile devices.
+                    </p>
+                  </div>
                 </div>
-                <p className="text-[11px] text-amber-200/60 leading-relaxed font-medium">
-                  Browsers block camera access on non-HTTPS connections. To test on a phone, you MUST use a secure tunnel (Ngrok) or deploy to Vercel/Production.
-                </p>
-                <div className="pt-2">
-                   <Button variant="outline" size="sm" className="h-8 px-4 border-amber-500/30 text-amber-500 text-[8px] font-black uppercase tracking-widest hover:bg-amber-500 hover:text-black">
-                      Permission Guide
-                   </Button>
+
+                <div className="space-y-4 pt-4 border-t border-white/5">
+                   <div className="space-y-1">
+                      <p className="text-[9px] font-black text-primary uppercase">✅ Solution 1: Production</p>
+                      <p className="text-[10px] text-white/50 leading-relaxed">Deploy to Vercel/Production. HTTPS is automatically provided.</p>
+                   </div>
+                   <div className="space-y-1">
+                      <p className="text-[9px] font-black text-primary uppercase">✅ Solution 2: Local Proxy</p>
+                      <p className="text-[10px] text-white/50 leading-relaxed">Use <code className="bg-black/40 px-1.5 py-0.5 rounded text-amber-500">ngrok</code> to create a secure tunnel to your local server.</p>
+                   </div>
                 </div>
+
+                <Button 
+                  onClick={() => window.open('https://web.dev/media-device-permissions/', '_blank')}
+                  className="w-full h-14 rounded-2xl bg-white/5 border border-white/10 text-white font-black uppercase tracking-widest text-[9px] hover:bg-white/10"
+                >
+                  View Permission Guide
+                </Button>
               </motion.div>
             )}
             
