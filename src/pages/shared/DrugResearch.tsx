@@ -21,12 +21,21 @@ import {
   Thermometer,
   Eye,
   Activity,
-  ChevronDown
+  ChevronDown,
+  Camera,
+  Image as ImageIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogDescription
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -55,6 +64,9 @@ interface DrugLabelResult {
   storage_and_handling?: string[];
   how_supplied?: string[];
   description?: string[];
+  
+  // External Media
+  images?: string[];
 }
 
 const SectionHeader = ({ icon: Icon, title, color = "primary" }: any) => (
@@ -66,7 +78,7 @@ const SectionHeader = ({ icon: Icon, title, color = "primary" }: any) => (
   </div>
 );
 
-const DataBlock = ({ content, title, icon }: any) => {
+const DataBlock = ({ content, title, icon: Icon }: any) => {
   const [isExpanded, setIsExpanded] = useState(false);
   if (!content || !content[0]) return null;
 
@@ -77,7 +89,7 @@ const DataBlock = ({ content, title, icon }: any) => {
     <div className="space-y-3 bg-white/[0.01] border border-white/5 p-6 rounded-2xl group hover:bg-white/[0.03] transition-all">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-muted-foreground group-hover:text-white transition-colors">
-          {icon && React.createElement(icon, { size: 14 })}
+          {Icon && <Icon size={14} />}
           <span className="text-[9px] font-black uppercase tracking-widest">{title}</span>
         </div>
       </div>
@@ -105,7 +117,19 @@ export default function DrugResearch() {
   const [results, setResults] = useState<DrugLabelResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedDrug, setSelectedDrug] = useState<DrugLabelResult | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+
+  const fetchDrugImages = async (brandName: string) => {
+    try {
+      // NIH RxImage API
+      const response = await axios.get(`https://rxnav.nlm.nih.gov/REST/rximage/search`, {
+        params: { name: brandName }
+      });
+      return response.data.nlmRxImages?.map((img: any) => img.imageUrl) || [];
+    } catch (e) {
+      return [];
+    }
+  };
 
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -119,7 +143,7 @@ export default function DrugResearch() {
       const response = await axios.get(`https://api.fda.gov/drug/label.json`, {
         params: {
           search: `openfda.brand_name:"${query}" openfda.generic_name:"${query}"`,
-          limit: 15
+          limit: 20
         }
       });
 
@@ -158,10 +182,16 @@ export default function DrugResearch() {
     }
   };
 
-  const scrollToTop = () => {
-     if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-     }
+  const openIntelligenceReport = async (drug: DrugLabelResult) => {
+    setSelectedDrug(drug);
+    setIsDetailLoading(true);
+    
+    // Fetch images in the background
+    if (drug.brand_name?.[0]) {
+      const imgs = await fetchDrugImages(drug.brand_name[0]);
+      setSelectedDrug(prev => prev ? { ...prev, images: imgs } : null);
+    }
+    setIsDetailLoading(false);
   };
 
   return (
@@ -182,7 +212,7 @@ export default function DrugResearch() {
                </div>
                <div>
                   <h1 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Clinical <span className="text-primary not-italic">Intelligence</span></h1>
-                  <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/40 mt-1">Lumiaxy Global Registry v4.0</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/40 mt-1">Multi-Source Hybrid Registry v4.5</p>
                </div>
             </div>
             
@@ -192,231 +222,244 @@ export default function DrugResearch() {
                 placeholder="Molecular Formula / Brand Name..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="h-14 pl-14 pr-32 rounded-2xl bg-white/[0.03] border-white/5 focus:border-primary/40 focus:bg-white/[0.06] text-sm font-bold uppercase tracking-widest transition-all"
+                className="h-14 pl-14 pr-32 rounded-2xl bg-white/[0.03] border-white/5 focus:border-primary/40 focus:bg-white/[0.06] text-sm font-bold uppercase tracking-widest transition-all shadow-2xl! shadow-black/80!"
               />
               <Button 
                 type="submit"
                 disabled={isLoading}
                 className="absolute right-3 top-1/2 -translate-y-1/2 h-8 px-4 rounded-xl bg-primary text-black font-black uppercase tracking-widest text-[8px]"
               >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Query"}
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Initiate Scry"}
               </Button>
             </form>
           </div>
-          
-          <form onSubmit={handleSearch} className="lg:hidden relative group w-full">
-            <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input 
-              placeholder="Search Meds..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="h-14 pl-14 rounded-2xl bg-card border-white/5"
-            />
-          </form>
         </div>
 
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 overflow-hidden pb-8">
-          {/* Registry Index */}
-          <div className={cn("flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-2", selectedDrug ? "lg:col-span-3" : "lg:col-span-12")}>
+        <div className="flex-1 overflow-y-auto custom-scrollbar pb-32">
+          {/* Registry Index Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             <AnimatePresence mode="popLayout">
               {results.map((drug, index) => (
                 <motion.div
                   key={drug.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.04 }}
-                  onClick={() => { setSelectedDrug(drug); scrollToTop(); }}
-                  className={cn(
-                    "p-6 cursor-pointer transition-all border rounded-3xl group relative overflow-hidden",
-                    selectedDrug?.id === drug.id 
-                      ? "bg-primary/10 border-primary shadow-[0_0_30px_rgba(var(--primary-rgb),0.1)] scale-[1.02]" 
-                      : "bg-white/[0.02] border-white/5 hover:border-white/20 hover:bg-white/[0.05]"
-                  )}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  onClick={() => openIntelligenceReport(drug)}
+                  className="p-8 cursor-pointer transition-all border border-white/5 bg-white/[0.02] hover:bg-white/[0.06] hover:border-primary/40 rounded-[2.5rem] group relative overflow-hidden flex flex-col justify-between h-72 shadow-2xl! shadow-black/40!"
                 >
-                  <div className="relative z-10 flex items-start justify-between">
-                    <div className="space-y-4">
-                      <div className="flex flex-wrap gap-2">
-                        {drug.brand_name?.slice(0, 1).map((name, i) => (
-                          <Badge key={i} className="bg-primary text-black font-black uppercase text-[8px] tracking-widest py-1 px-2.5 rounded-lg">{name}</Badge>
-                        ))}
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-black italic tracking-tighter uppercase leading-none group-hover:text-primary transition-colors">
-                          {drug.generic_name?.[0] || "Component Registry"}
-                        </h3>
-                        <div className="flex items-center gap-3 mt-3">
-                           <div className="h-px w-6 bg-primary/30" />
-                           <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground truncate max-w-[150px]">
-                            {drug.manufacturer_name?.[0] || "Global Source"}
-                           </p>
-                        </div>
+                  <div className="relative z-10 space-y-6">
+                    <div className="flex flex-wrap gap-2">
+                       <Badge className="bg-primary text-black font-black uppercase text-[8px] tracking-widest py-1 px-2.5 rounded-lg">
+                        {drug.brand_name?.[0] || "Component"}
+                       </Badge>
+                       {drug.route?.[0] && (
+                        <Badge variant="outline" className="border-white/10 text-[8px] font-black uppercase tracking-widest px-2.5">
+                          {drug.route[0]}
+                        </Badge>
+                       )}
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-black italic tracking-tighter uppercase leading-tight group-hover:text-primary transition-colors line-clamp-2">
+                        {drug.generic_name?.[0] || "Unknown Molecule"}
+                      </h3>
+                      <div className="flex items-center gap-3 mt-4">
+                         <div className="h-px w-8 bg-primary/30" />
+                         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground truncate">
+                          {drug.manufacturer_name?.[0] || "Global Pharm Source"}
+                         </p>
                       </div>
                     </div>
-                    <ChevronRight size={18} className={cn("text-muted-foreground transition-all", selectedDrug?.id === drug.id && "rotate-90 text-primary")} />
+                  </div>
+                  <div className="flex items-center justify-between text-muted-foreground group-hover:text-white transition-colors">
+                     <p className="text-[9px] font-black uppercase tracking-[0.3em]">Query Token: {drug.id.slice(0, 8)}</p>
+                     <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
                   </div>
                 </motion.div>
               ))}
             </AnimatePresence>
-            
-            {results.length === 0 && !isLoading && !query && (
-              <div className="py-32 flex flex-col items-center justify-center text-center opacity-10">
-                  <div className="h-32 w-32 rounded-full border-[4px] border-dashed border-white/20 flex items-center justify-center mb-8 rotate-12">
-                      <BookOpen size={64} className="text-white" />
-                  </div>
-                  <h2 className="text-4xl font-black italic tracking-tighter uppercase">Registry Standby</h2>
-                  <p className="text-xs font-black uppercase tracking-[0.5em] mt-4">Establish search connection to stream clinical data</p>
-              </div>
-            )}
           </div>
-
-          {/* Deep Intelligence Detail Section */}
-          <AnimatePresence>
-            {selectedDrug && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                className="lg:col-span-9 bg-white/[0.02] border border-white/10 rounded-[3rem] overflow-hidden flex flex-col shadow-2xl backdrop-blur-3xl"
-              >
-                {/* Internal Scrollable Content */}
-                <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar p-8 md:p-12 space-y-16">
-                  
-                  {/* Visual Header & Profile */}
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-12 items-start">
-                    <div className="space-y-8">
-                      <div className="flex items-center gap-4">
-                         <div className="h-14 w-14 rounded-2xl bg-gradient-to-tr from-primary to-orange-500 flex items-center justify-center text-black shadow-xl shadow-primary/20">
-                            <Pill size={28} />
-                         </div>
-                         <div>
-                            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary mb-1 block">Clinical Master Record</span>
-                            <h2 className="text-4xl font-black italic tracking-tighter uppercase leading-none">{selectedDrug.brand_name?.[0] || selectedDrug.generic_name?.[0]}</h2>
-                         </div>
-                      </div>
-                      
-                      <div className="flex flex-wrap gap-3">
-                         {selectedDrug.substance_name?.slice(0, 3).map((sub, i) => (
-                           <div key={i} className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl flex items-center gap-2">
-                              <FlaskConical size={12} className="text-primary/60" />
-                              <span className="text-[10px] font-black uppercase tracking-widest">{sub}</span>
-                           </div>
-                         ))}
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                         <div className="p-5 rounded-2xl bg-white/[0.01] border border-white/5">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2">Primary Route</p>
-                            <div className="flex items-center gap-2">
-                               <Package size={14} className="text-primary" />
-                               <span className="text-sm font-bold uppercase">{selectedDrug.route?.[0] || "Unknown"}</span>
-                            </div>
-                         </div>
-                         <div className="p-5 rounded-2xl bg-white/[0.01] border border-white/5">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2">Class Structure</p>
-                            <div className="flex items-center gap-2">
-                               <Zap size={14} className="text-primary" />
-                               <span className="text-xs font-bold uppercase truncate">{selectedDrug.pharm_class_cs?.[0]?.split('[')?.[0] || "N/A"}</span>
-                            </div>
-                         </div>
-                      </div>
-                    </div>
-
-                    {/* Virtual Spec Visualization */}
-                    <div className="relative group">
-                       <div className="absolute inset-0 bg-primary/10 rounded-[2.5rem] blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity" />
-                       <div className="relative aspect-[4/3] rounded-[2.5rem] bg-gradient-to-br from-white/10 to-transparent border border-white/10 flex flex-col items-center justify-center gap-8 overflow-hidden group shadow-2xl">
-                          <motion.div 
-                            initial={{ rotate: -15, scale: 0.9 }}
-                            animate={{ rotate: 10, scale: 1.1 }}
-                            transition={{ repeat: Infinity, duration: 6, repeatType: 'reverse' }}
-                            className="text-primary/10 absolute -right-10 -bottom-10"
-                          >
-                            <Microscope size={300} strokeWidth={1} />
-                          </motion.div>
-                          
-                          <div className="flex flex-col items-center gap-4 relative z-10">
-                             <div className="h-32 w-32 rounded-3xl bg-black border border-primary/20 flex items-center justify-center text-primary shadow-2xl shadow-primary/10">
-                                <Zap size={64} className="animate-pulse" />
-                             </div>
-                             <div className="text-center">
-                                <h4 className="text-[11px] font-black uppercase tracking-[0.4em] mb-1 italic text-white/40">Visual Spec ID</h4>
-                                <p className="text-xl font-black font-mono tracking-tighter text-primary">{selectedDrug.id.slice(0, 8).toUpperCase()}</p>
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-                  </div>
-
-                  {/* Safety Critical Section */}
-                  <div className="space-y-8 pt-8 border-t border-white/5">
-                    <SectionHeader icon={ShieldAlert} title="Safety Intelligence" color="red-500" />
-                    
-                    {selectedDrug.boxed_warning && (
-                       <div className="p-8 rounded-[2rem] bg-red-500/10 border border-red-500/30 space-y-4 animate-pulse-slow">
-                          <div className="flex items-center gap-2 text-red-500">
-                             <ShieldAlert size={18} />
-                             <span className="text-[11px] font-black uppercase tracking-widest">CRITICAL BLACK BOX WARNING</span>
-                          </div>
-                          <p className="text-sm font-bold text-red-200/80 leading-relaxed italic pr-12">
-                            {selectedDrug.boxed_warning[0]}
-                          </p>
-                       </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                       <DataBlock title="Contraindications" icon={ShieldAlert} content={selectedDrug.contraindications} />
-                       <DataBlock title="Warnings & Precautions" icon={AlertCircle} content={selectedDrug.warnings} />
-                       <DataBlock title="Adverse Reactions" icon={Activity} content={selectedDrug.adverse_reactions} />
-                       <DataBlock title="Pharmaceutical Interactions" icon={Zap} content={selectedDrug.drug_interactions} />
-                    </div>
-                  </div>
-
-                  {/* Deep Clinical Data */}
-                  <div className="space-y-8 pt-8 border-t border-white/5">
-                    <SectionHeader icon={Microscope} title="Molecular Intelligence" color="blue-500" />
-                    <div className="grid grid-cols-1 gap-6">
-                       <DataBlock title="Clinical Pharmacology" icon={FlaskConical} content={selectedDrug.clinical_pharmacology} />
-                       <DataBlock title="Mechanism of Action" icon={Zap} content={selectedDrug.pharm_class_moa} />
-                       <DataBlock title="Medical Description" icon={Info} content={selectedDrug.description} />
-                       <DataBlock title="Therapeutic Intent (Purpose)" icon={Stethoscope} content={selectedDrug.purpose} />
-                    </div>
-                  </div>
-
-                  {/* Logistics & Storage */}
-                  <div className="space-y-8 pt-8 border-t border-white/5 pb-12">
-                    <SectionHeader icon={Package} title="Deployment Intelligence" color="amber-500" />
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                       <DataBlock title="Storage & Handling" icon={Thermometer} content={selectedDrug.storage_and_handling} />
-                       <DataBlock title="Physical Supply & Form" icon={Package} content={selectedDrug.how_supplied} />
-                       <DataBlock title="Overdosage Recovery" icon={ShieldAlert} content={selectedDrug.overdosage} />
-                       <div className="p-8 rounded-[2rem] bg-white/[0.01] border border-white/5 flex flex-col justify-center">
-                          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground mb-4">Official Documentation</p>
-                          <Button 
-                            variant="outline" 
-                            className="rounded-2xl border-primary/20 text-primary uppercase text-[9px] font-black tracking-widest gap-2 hover:bg-primary hover:text-black transition-all"
-                            onClick={() => window.open(`https://open.fda.gov/drug/label/results/?search=id:${selectedDrug.id}`, '_blank')}
-                          >
-                            Access Master SPL File <ExternalLink size={14} />
-                          </Button>
-                       </div>
-                    </div>
-                  </div>
-
+          
+          {results.length === 0 && !isLoading && (
+            <div className="py-44 flex flex-col items-center justify-center text-center opacity-10">
+                <div className="h-44 w-44 rounded-full border-[6px] border-dashed border-white/20 flex items-center justify-center mb-10 rotate-12">
+                    <BookOpen size={96} className="text-white" />
                 </div>
-
-                {/* Status Bar */}
-                <div className="h-14 bg-black/40 border-t border-white/5 px-10 flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-4">
-                       <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                       <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/30">Intelligence Uplink: SECURE</p>
-                    </div>
-                    <p className="text-[10px] font-black uppercase tracking-widest italic text-primary/40">© 2026 Lumiaxy Intelligence Hub</p>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <h2 className="text-6xl font-black italic tracking-tighter uppercase">Registry Hub Standby</h2>
+                <p className="text-xs font-black uppercase tracking-[0.8em] mt-6">Awaiting clinical search parameters...</p>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Intelligence Modal Report */}
+      <Dialog open={!!selectedDrug} onOpenChange={(open) => !open && setSelectedDrug(null)}>
+        <DialogContent className="max-w-[1400px] w-[95vw] h-[90vh] bg-[#0A0A0C] border-white/5 rounded-[4rem] overflow-hidden p-0 shadow-3xl!">
+          <div className="h-full flex flex-col">
+            {/* Modal Header */}
+            <div className="h-24 px-12 border-b border-white/5 flex items-center justify-between shrink-0 bg-white/[0.02]">
+              <div className="flex items-center gap-6">
+                <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                  <ShieldCheck size={28} />
+                </div>
+                <div>
+                   <h2 className="text-2xl font-black italic tracking-tighter uppercase text-white leading-none">Comprehensive Intelligence Report</h2>
+                   <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/40 mt-1.5 flex items-center gap-2">
+                    <FlaskConical size={12} /> SECURE FDA/NIH DATALINK ACTIVE
+                   </p>
+                </div>
+              </div>
+              <Button onClick={() => setSelectedDrug(null)} variant="ghost" className="h-12 w-12 rounded-2xl text-muted-foreground hover:bg-white/5">
+                <X size={24} />
+              </Button>
+            </div>
+
+            {/* Modal Content Scrollable Area */}
+            {selectedDrug && (
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-12 space-y-20">
+                
+                {/* Visual Identity Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
+                   <div className="lg:col-span-7 space-y-10">
+                      <div className="space-y-6">
+                        <div className="flex flex-wrap gap-2">
+                           <Badge className="bg-primary text-black font-black uppercase text-[10px] tracking-widest py-1.5 px-4 rounded-xl">MASTER RECORD</Badge>
+                           <Badge variant="outline" className="border-white/10 text-[10px] font-black uppercase tracking-widest px-4">{selectedDrug.route?.[0]}</Badge>
+                        </div>
+                        <div>
+                          <h1 className="text-6xl font-black italic tracking-tighter uppercase leading-none text-white tracking-widest!">
+                            {selectedDrug.brand_name?.[0] || selectedDrug.generic_name?.[0]}
+                          </h1>
+                          <p className="text-xl font-medium text-white/40 italic mt-6 border-l-4 border-primary pl-6 max-w-2xl">
+                            {selectedDrug.generic_name?.[0]} — {selectedDrug.manufacturer_name?.[0]}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-6">
+                        <div className="p-6 rounded-3xl bg-white/[0.02] border border-white/5 space-y-2">
+                           <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Class Logic</p>
+                           <p className="text-sm font-bold uppercase text-primary truncate">{selectedDrug.pharm_class_moa?.[0] || "General"}</p>
+                        </div>
+                        <div className="p-6 rounded-3xl bg-white/[0.02] border border-white/5 space-y-2">
+                           <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Substance Token</p>
+                           <p className="text-sm font-bold uppercase text-primary truncate">{selectedDrug.substance_name?.[0] || "Complex"}</p>
+                        </div>
+                        <div className="p-6 rounded-3xl bg-white/[0.02] border border-white/5 space-y-2">
+                           <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Logistics ID</p>
+                           <p className="text-sm font-bold uppercase text-primary truncate">{selectedDrug.id.slice(0, 10).toUpperCase()}</p>
+                        </div>
+                      </div>
+                   </div>
+
+                   {/* Image & Photo Intelligence */}
+                   <div className="lg:col-span-5 space-y-6">
+                      <div className="aspect-[4/3] rounded-[3rem] bg-gradient-to-br from-white/5 to-transparent border border-white/10 overflow-hidden relative group shadow-3xl!">
+                         {isDetailLoading ? (
+                           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/40 backdrop-blur-3xl">
+                             <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                             <p className="text-[9px] font-black uppercase tracking-[0.4em] text-primary">Streaming NIH Graphics...</p>
+                           </div>
+                         ) : selectedDrug.images && selectedDrug.images.length > 0 ? (
+                            <img 
+                              src={selectedDrug.images[0]} 
+                              alt="Physical ID" 
+                              className="w-full h-full object-contain p-8 group-hover:scale-105 transition-transform duration-700" 
+                            />
+                         ) : (
+                           <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 opacity-30 group-hover:opacity-60 transition-opacity">
+                             <div className="h-24 w-24 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
+                                <ImageIcon size={48} />
+                             </div>
+                             <p className="text-[10px] font-black uppercase tracking-[0.4em]">Official Photo N/A</p>
+                           </div>
+                         )}
+                         <div className="absolute bottom-6 left-6 right-6 flex items-center justify-between">
+                            <div className="px-4 py-2 bg-black/60 backdrop-blur-xl border border-white/10 rounded-full text-[8px] font-black uppercase tracking-[0.3em]">
+                               RXNAV VISUAL SIGNATURE
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-primary text-black">
+                               <Camera size={18} />
+                            </Button>
+                         </div>
+                      </div>
+                      <p className="text-center text-[9px] font-medium text-white/20 italic italic pr-6 pl-6">Clinical rendering provided by RxImage NIH Cloud. Some variations in coloring and shape may exist.</p>
+                   </div>
+                </div>
+
+                {/* Safety Intelligence Section */}
+                <div className="space-y-12">
+                   <SectionHeader icon={ShieldAlert} title="Critical Safety Intelligence" color="red-500" />
+                   
+                   {selectedDrug.boxed_warning && (
+                      <div className="p-10 rounded-[3rem] bg-red-500/10 border border-red-500/20 space-y-6 shadow-[0_0_50px_rgba(239,68,68,0.1)]">
+                         <div className="flex items-center gap-3 text-red-500">
+                            <AlertCircle size={24} strokeWidth={3} />
+                            <h3 className="text-lg font-black uppercase tracking-[0.2em] italic">Official Boxed Warning</h3>
+                         </div>
+                         <div className="text-lg font-bold text-red-200/90 leading-relaxed italic border-l-4 border-red-500/30 pl-8">
+                            {selectedDrug.boxed_warning[0]}
+                         </div>
+                      </div>
+                   )}
+
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <DataBlock title="Contraindications" icon={ShieldAlert} content={selectedDrug.contraindications} />
+                      <DataBlock title="Drug Interaction Matrix" icon={Zap} content={selectedDrug.drug_interactions} />
+                      <DataBlock title="Adverse Reactivity" icon={Activity} content={selectedDrug.adverse_reactions} />
+                      <DataBlock title="Major Warnings" icon={AlertCircle} content={selectedDrug.warnings} />
+                   </div>
+                </div>
+
+                {/* Clinical Pharmacology */}
+                <div className="space-y-12 pb-20 border-t border-white/5 pt-20">
+                   <SectionHeader icon={Microscope} title="Clinical Intelligence Hub" color="blue-500" />
+                   <div className="grid grid-cols-1 gap-10">
+                      <DataBlock title="Pharmacological Mechanism (MOA)" icon={Zap} content={selectedDrug.clinical_pharmacology} />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                         <DataBlock title="Indications & Usage" icon={Stethoscope} content={selectedDrug.indications_and_usage} />
+                         <DataBlock title="Dosage Profile" icon={Info} content={selectedDrug.dosage_and_administration} />
+                      </div>
+                      <DataBlock title="Scientific Description" icon={Info} content={selectedDrug.description} />
+                   </div>
+                </div>
+
+                {/* Logistics */}
+                <div className="space-y-12 pb-24 border-t border-white/5 pt-20">
+                   <SectionHeader icon={Package} title="Deployment Intelligence" color="amber-500" />
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                      <DataBlock title="Storage Logic" icon={Thermometer} content={selectedDrug.storage_and_handling} />
+                      <DataBlock title="Format & Supply" icon={Package} content={selectedDrug.how_supplied} />
+                      <div className="p-10 bg-white/[0.02] border border-white/5 rounded-[3rem] flex flex-col justify-center gap-6">
+                        <div className="space-y-2">
+                           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Protocol Verification</p>
+                           <p className="text-xs text-white/40 italic">Check against official FDA-vetted labels in the Source SPL Registry.</p>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => window.open(`https://open.fda.gov/drug/label/results/?search=id:${selectedDrug.id}`, '_blank')}
+                          className="h-14 rounded-2xl border-primary/20 text-primary font-black uppercase tracking-widest text-[9px] hover:bg-primary hover:text-black transition-all gap-3"
+                        >
+                          Launch Master Record <ExternalLink size={14} />
+                        </Button>
+                      </div>
+                   </div>
+                </div>
+
+              </div>
+            )}
+            
+            {/* Modal Bottom Branding */}
+            <div className="h-16 border-t border-white/5 px-12 flex items-center justify-between shrink-0 bg-white/[0.01]">
+                <p className="text-[9px] font-black uppercase tracking-[0.5em] text-white/20">© 2026 Lumiaxy Intelligence Hub — Secure Clinical Uplink</p>
+                <div className="flex items-center gap-4">
+                   <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                   <span className="text-[10px] font-black tracking-widest text-primary/40 uppercase">Datalink Stream: Validated</span>
+                </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
