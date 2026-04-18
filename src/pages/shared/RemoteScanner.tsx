@@ -18,7 +18,9 @@ import {
   Vibrate,
   VibrateOff,
   Maximize2,
-  X
+  X,
+  Stethoscope,
+  ShieldAlert
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -55,6 +57,25 @@ export default function RemoteScanner() {
   
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
+  const log = (msg: string) => {
+    console.log("[Scanner] " + msg);
+    setDebugLog(prev => `${new Date().toLocaleTimeString()} - ${msg}\n${prev}`.slice(0, 1000));
+  };
+
+  const triggerPermissionRequest = async () => {
+    log("Manually requesting camera stream...");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      log("Stream acquired. Permissions granted.");
+      stream.getTracks().forEach(track => track.stop());
+      refreshCameras();
+      toast.success("Ready for scanning.");
+    } catch (err: any) {
+      log(`Permission Error: ${err.message}`);
+      toast.error(`Permission denied: ${err.name}`);
+    }
+  };
+
   const refreshCameras = async () => {
     try {
       const devices = await Html5Qrcode.getCameras();
@@ -67,9 +88,11 @@ export default function RemoteScanner() {
     }
   };
 
-  useEffect(() => {
-    refreshCameras();
-  }, []);
+  // NOTE: Do NOT call refreshCameras() on mount.
+  // Browsers flag sites as suspicious/dangerous when they call
+  // getUserMedia or enumerateDevices without a user gesture.
+  // Camera enumeration happens after user taps "Initialize Lens"
+  // or "Force Permission Prompt".
 
   useEffect(() => {
     if (!sessionId) return;
@@ -177,6 +200,7 @@ export default function RemoteScanner() {
 
   const stopScanner = async () => {
     if (scannerRef.current) {
+      log("Shutting down camera stream...");
       try {
         await scannerRef.current.stop();
       } catch (e) {}
