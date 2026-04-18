@@ -37,8 +37,8 @@ export default function Index() {
     <div className="min-h-screen bg-[#07070a] text-foreground flex flex-col font-body selection:bg-primary/20 overflow-x-hidden">
       {/* Background Decorative Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]" />
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px] animate-pulse [animation-delay:1.5s]" />
       </div>
 
       {/* Navbar */}
@@ -77,22 +77,22 @@ export default function Index() {
         <section className="min-h-[90vh] flex flex-col items-center justify-center px-6 pt-24 pb-32 text-center relative max-w-7xl">
           {/* Hero Content */}
           <div className="relative z-10 flex flex-col items-center text-center space-y-10 max-w-5xl mx-auto px-6">
-            <div className="inline-flex items-center gap-2.5 px-6 py-2 rounded-full bg-white/[0.03] border border-white/10 backdrop-blur-md">
-               <div className="h-2 w-2 rounded-full bg-primary" />
+            <div className="inline-flex items-center gap-2.5 px-6 py-2 rounded-full bg-white/[0.03] border border-white/10 backdrop-blur-md animate-in slide-in-from-top duration-1000">
+               <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-primary">Enterprise Retail Solutions</span>
             </div>
             
             <div className="space-y-6">
-               <h1 className="text-7xl md:text-9xl font-black text-white tracking-tighter leading-[0.85] italic uppercase">
+               <h1 className="text-7xl md:text-9xl font-black text-white tracking-tighter leading-[0.85] italic uppercase animate-in zoom-in-95 duration-1000">
                   Lumiaxy <br /> 
                   <span className="text-primary underline decoration-primary/20 underline-offset-[12px]">Enterprise</span>
                </h1>
-               <p className="text-xl md:text-2xl text-muted-foreground font-medium max-w-2xl mx-auto leading-relaxed">
+               <p className="text-xl md:text-2xl text-muted-foreground font-medium max-w-2xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom duration-1000 delay-300">
                   The unified platform for scaling pharmacy networks. Manage inventory, sales, and branches in one clean interface.
                </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center gap-6 pt-6">
+            <div className="flex flex-col sm:flex-row items-center gap-6 pt-6 animate-in fade-in slide-in-from-bottom duration-1000 delay-500">
               <Button 
                 onClick={handleCTA}
                 className="h-20 px-12 rounded-[2rem] bg-primary text-black font-black uppercase text-xs tracking-[0.3em] shadow-[0_20px_60px_rgba(var(--primary-rgb),0.3)] hover:scale-105 transition-all group"
@@ -161,7 +161,7 @@ export default function Index() {
               <div className="relative rounded-3xl border border-white/10 bg-black shadow-2xl overflow-hidden aspect-square flex items-center justify-center">
                  <div className="grid grid-cols-3 gap-6 p-12 w-full h-full opacity-40 group-hover:opacity-100 transition-opacity duration-1000">
                     {Array.from({ length: 9 }).map((_, i) => (
-                      <div key={i} className="rounded-2xl bg-white/5 border border-white/5 flex flex-col items-center justify-center gap-2">
+                      <div key={i} className="rounded-2xl bg-white/5 border border-white/5 flex flex-col items-center justify-center gap-2 animate-pulse" style={{ animationDelay: `${i * 100}ms` }}>
                         <Building2 className="h-8 w-8 text-primary/40" />
                         <div className="h-1.5 w-12 bg-white/5 rounded-full" />
                       </div>
@@ -230,7 +230,7 @@ export default function Index() {
               <div className="space-y-5 mb-12 flex-1">
                 {["Unlimited Branches", "Global Administration Panel", "Subscription Control", "Advanced Business Analytics", "Priority Support"].map((f, i) => (
                   <div key={i} className="flex items-center gap-3 text-xs font-black text-white">
-                    <Sparkles className="h-4 w-4 text-primary" />
+                    <Sparkles className="h-4 w-4 text-primary animate-pulse" />
                     {f}
                   </div>
                 ))}

@@ -66,7 +66,6 @@ export default function LoginPage() {
               </div>
               <CardTitle className="text-3xl font-bold text-foreground dark:text-white tracking-tight">Secure Login</CardTitle>
               <CardDescription className="text-muted-foreground font-medium pt-1">Enter your credentials to access the system</CardDescription>
-              <p className="text-xs text-red-500 mt-2">Key check: {import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.substring(0, 15)}...</p>
             </CardHeader>
             <CardContent className="p-8 pt-4">
               <form onSubmit={handleSubmit} className="space-y-6">

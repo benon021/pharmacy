@@ -376,7 +376,7 @@ export default function NewSale() {
   };
 
   return (
-    <div className="space-y-8 pb-20">
+    <div className="space-y-8 animate-fade-in pb-20">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-primary font-bold text-sm">
@@ -397,7 +397,7 @@ export default function NewSale() {
            </Button>
            <div className="h-6 w-px bg-border dark:bg-white/10" />
           <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-primary glow-primary" />
+            <div className="h-2 w-2 rounded-full bg-primary glow-primary animate-pulse" />
             <span className="text-[10px] font-black text-foreground dark:text-white uppercase tracking-[0.2em]">{user?.role} Active</span>
           </div>
         </div>
@@ -443,8 +443,9 @@ export default function NewSale() {
                     "group flex items-center justify-between premium-card !p-5 transition-all text-left relative overflow-hidden active:scale-[0.98] hover-glow-intel cursor-pointer",
                     expired && "bg-red-500/[0.03] border-red-500/20 grayscale-[0.8] opacity-70",
                     drug.stock <= 0 && "opacity-60 grayscale",
-                    drug.stock > 0 && "hover:border-primary/40"
+                    !expired && drug.stock > 0 && "hover:border-primary/40"
                   )}
+                  style={{ animationDelay: `${i * 30}ms` }}
                 >
                   <div className="flex items-center gap-4 relative z-10 flex-1">
                     <div
@@ -568,7 +569,7 @@ export default function NewSale() {
               {cart.some(i => i.requires_prescription) && (
                 <div className={cn(
                   "p-5 rounded-3xl border-2 border-dashed transition-all space-y-4",
-                  prescriptionUploaded ? "bg-green-500/5 border-green-500/30" : "bg-amber-500/5 border-amber-500/30"
+                  prescriptionUploaded ? "bg-green-500/5 border-green-500/30" : "bg-amber-500/5 border-amber-500/30 animate-pulse-slow"
                 )}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -661,7 +662,7 @@ export default function NewSale() {
                   <div className="p-5 rounded-[2rem] bg-green-500/5 border border-green-500/20 space-y-4 animate-fade-in shadow-inner">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-green-500">
-                        <div className="h-2 w-2 rounded-full bg-green-500" />
+                        <div className="h-2 w-2 rounded-full bg-green-500 animate-ping" />
                         <p className="text-[10px] font-black uppercase tracking-[0.2em]">Safaricom STK Pipeline</p>
                       </div>
                       <Receipt className="h-4 w-4 text-green-600" />
@@ -732,7 +733,7 @@ export default function NewSale() {
                       <h3 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] mb-1">Total Amount</h3>
                       <div className="flex items-baseline gap-1.5">
                         <span className="text-xs font-bold text-muted-foreground">KES</span>
-                        <span key={finalTotal} className="text-4xl font-black tracking-tighter text-foreground dark:text-white glow-primary">{finalTotal.toLocaleString()}</span>
+                        <span key={finalTotal} className="text-4xl font-black tracking-tighter text-foreground dark:text-white glow-primary animate-cart-pulse">{finalTotal.toLocaleString()}</span>
                       </div>
                     </div>
                     <Button
@@ -751,11 +752,11 @@ export default function NewSale() {
       </div>
 
       {syncing && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#09090B]/80 backdrop-blur-xl duration-300">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#09090B]/80 backdrop-blur-xl animate-in fade-in duration-300">
           <div className="premium-card max-w-sm w-full p-10 flex flex-col items-center text-center space-y-6">
             <div className="relative">
               <div className="h-20 w-20 rounded-[2rem] bg-primary/10 flex items-center justify-center border border-primary/20">
-                <Database className="h-10 w-10 text-primary" />
+                <Database className="h-10 w-10 text-primary animate-pulse" />
               </div>
               <RefreshCw className="absolute -top-2 -right-2 h-8 w-8 text-accent animate-spin" />
             </div>
@@ -764,7 +765,7 @@ export default function NewSale() {
               <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Updating Inventory & Saving Transaction...</p>
             </div>
             <div className="w-full h-1.5 bg-card dark:bg-white/5 rounded-full overflow-hidden">
-              <div className="h-full bg-primary" />
+              <div className="h-full bg-primary animate-sync-bar" />
             </div>
           </div>
         </div>
