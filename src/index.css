@@ -5,42 +5,6 @@
 
 @layer base {
   :root {
-    --background: 0 0% 93%;
-    --foreground: 240 10% 10%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 10%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 10%;
-
-    --primary: 27 100% 50%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 0 0% 90%;
-    --secondary-foreground: 240 10% 4%;
-
-    --muted: 0 0% 90%;
-    --muted-foreground: 240 5% 45%;
-
-    --accent: 240 10% 4%;
-    --accent-foreground: 0 0% 98%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 0 0% 88%;
-    --input: 0 0% 88%;
-    --ring: 27 100% 50%;
-
-    --radius: 1.5rem;
-
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 240 10% 10%;
-    --sidebar-primary: 27 100% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 95%;
-    --sidebar-accent-foreground: 240 10% 4%;
     --background: 240 10% 4%;
     --foreground: 0 0% 98%;
 
@@ -69,61 +33,7 @@
     --input: 240 5% 12%;
     --ring: 27 100% 50%;
 
-    --radius: 0.75rem;
-
-    --sidebar-background: 240 10% 4%;
-    --sidebar-foreground: 240 5% 85%;
-    --sidebar-primary: 16 100% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 4% 16%;
-    --sidebar-accent-foreground: 240 5% 96%;
-    --sidebar-border: 240 4% 16%;
-    --sidebar-ring: 27 96% 61%;
-
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 38 92% 12%;
-    --info: 217 91% 60%;
-    --info-foreground: 0 0% 100%;
-
-    --shadow-glow: 0 0 20px hsl(var(--primary) / 0.15);
-    --shadow-premium: 0 20px 50px rgba(0, 0, 0, 0.5);
-
-    --font-heading: 'Space Grotesk', sans-serif;
-    --font-body: 'Plus Jakarta Sans', sans-serif;
-  }
-
-  .dark {
-    --background: 240 10% 4%;
-    --foreground: 0 0% 98%;
-
-    --card: 240 10% 6%;
-    --card-foreground: 0 0% 98%;
-
-    --popover: 240 10% 6%;
-    --popover-foreground: 0 0% 98%;
-
-    --primary: 27 100% 50%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 240 5% 15%;
-    --secondary-foreground: 0 0% 98%;
-
-    --muted: 240 5% 12%;
-    --muted-foreground: 240 5% 65%;
-
-    --accent: 262 83% 58%;
-    --accent-foreground: 0 0% 98%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 240 5% 12%;
-    --input: 240 5% 12%;
-    --ring: 27 100% 50%;
-
-    --radius: 0.75rem;
+    --radius: 2rem;
 
     --sidebar-background: 240 10% 4%;
     --sidebar-foreground: 240 5% 85%;
@@ -143,6 +53,13 @@
 
     --shadow-glow: 0 0 20px hsl(var(--primary) / 0.15);
     --shadow-premium: 0 20px 50px rgba(0, 0, 0, 0.5);
+
+    --font-heading: 'Plus Jakarta Sans', sans-serif;
+    --font-body: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  .dark {
+    /* Inherit from root which is already dark */
   }
 }
 
@@ -153,7 +70,9 @@
 
   body {
     @apply bg-background text-foreground font-body antialiased;
-    background-image: radial-gradient(circle at 0% 0%, rgba(255,255,255,0.4) 0%, transparent 50%);
+    background-image: 
+      radial-gradient(circle at 20% 20%, hsla(var(--primary), 0.05) 0%, transparent 40%),
+      radial-gradient(circle at 80% 80%, hsla(var(--accent), 0.03) 0%, transparent 40%);
     background-attachment: fixed;
   }
 
