@@ -140,10 +140,11 @@ export default function DrugResearch() {
     setSelectedDrug(null);
     
     try {
+      // Searching brand name OR generic name OR substance with wildcards
       const response = await axios.get(`https://api.fda.gov/drug/label.json`, {
         params: {
-          search: `openfda.brand_name:"${query}" openfda.generic_name:"${query}"`,
-          limit: 20
+          search: `(openfda.brand_name:"${query}*" openfda.generic_name:"${query}*" substance_name:"${query}*")`,
+          limit: 25
         }
       });
 

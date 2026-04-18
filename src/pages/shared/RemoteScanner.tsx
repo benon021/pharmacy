@@ -46,10 +46,26 @@ export default function RemoteScanner() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [vibrateEnabled, setVibrateEnabled] = useState(true);
   
+  const [cameras, setCameras] = useState<{ id: string, label: string }[]>([]);
+  const [activeCameraIndex, setActiveCameraIndex] = useState(0);
+  
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => {
+    // Check for available cameras
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices && devices.length > 0) {
+        setCameras(devices.map(d => ({ id: d.id, label: d.label })));
+      }
+    }).catch(() => {
+      toast.error("Lens enumeration failed. Permissions issue.");
+    });
+  }, []);
+
+  useEffect(() => {
     if (!sessionId) return;
+    
+    // ... existing realtime sync logic remains unchanged ...
 
     const channel = supabase.channel(`scanner-session:${sessionId}`);
     
@@ -88,12 +104,19 @@ export default function RemoteScanner() {
   }, [sessionId, soundEnabled, vibrateEnabled]);
 
   const startScanner = async () => {
+    if (!window.isSecureContext && window.location.hostname !== "localhost") {
+      toast.error("Camera requires HTTPS connection.");
+      return;
+    }
+
     try {
       const scanner = new Html5Qrcode("mobile-scanner-region");
       scannerRef.current = scanner;
       
+      const cameraId = cameras[activeCameraIndex]?.id;
+      
       await scanner.start(
-        { facingMode: "environment" },
+        cameraId ? { deviceId: { exact: cameraId } } : { facingMode: "environment" },
         { fps: 20, qrbox: { width: 280, height: 180 } },
         (decodedText) => {
           handleScan(decodedText);
@@ -103,6 +126,19 @@ export default function RemoteScanner() {
       setIsScanning(true);
     } catch (err) {
       toast.error("Camera access failed. Check permissions.");
+    }
+  };
+
+  const cycleCamera = async () => {
+    if (cameras.length < 2) return;
+    
+    const nextIndex = (activeCameraIndex + 1) % cameras.length;
+    setActiveCameraIndex(nextIndex);
+    
+    if (isScanning) {
+      await stopScanner();
+      // Small timeout to allow the hardware to release
+      setTimeout(startScanner, 300);
     }
   };
 
@@ -246,12 +282,22 @@ export default function RemoteScanner() {
                    >
                       <Zap size={40} className="fill-current" />
                    </motion.div>
-                   <Button 
-                    onClick={startScanner}
-                    className="h-14 px-10 rounded-2xl bg-white text-black font-black uppercase tracking-[0.2em] text-[10px] hover:bg-primary transition-colors"
-                   >
-                     Initialize Lens
-                   </Button>
+                   <div className="flex flex-col items-center gap-4">
+                     <Button 
+                      onClick={startScanner}
+                      className="h-14 px-10 rounded-2xl bg-white text-black font-black uppercase tracking-[0.2em] text-[10px] hover:bg-primary transition-colors"
+                     >
+                       Initialize Lens
+                     </Button>
+                     {cameras.length > 1 && (
+                       <button 
+                        onClick={cycleCamera}
+                        className="text-[9px] font-black uppercase tracking-widest text-primary/60 hover:text-primary transition-colors flex items-center gap-2"
+                       >
+                         <RefreshCw size={12} /> Cycle Lens ({activeCameraIndex + 1}/{cameras.length})
+                       </button>
+                     )}
+                   </div>
                 </div>
               )}
 
