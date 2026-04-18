@@ -51,16 +51,19 @@ export default function RemoteScanner() {
   const [activeCameraIndex, setActiveCameraIndex] = useState(0);
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   
+  const [debugLog, setDebugLog] = useState<string>("");
+  
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
   const refreshCameras = async () => {
     try {
       const devices = await Html5Qrcode.getCameras();
       if (devices && devices.length > 0) {
+        log(`Lenses found: ${devices.length}`);
         setCameras(devices.map(d => ({ id: d.id, label: d.label })));
       }
     } catch (err) {
-      console.warn("Camera enumeration deferred until interaction.");
+      log("Enumeration blocked by browser security.");
     }
   };
 
@@ -71,8 +74,7 @@ export default function RemoteScanner() {
   useEffect(() => {
     if (!sessionId) return;
     
-    // ... existing realtime sync logic remains unchanged ...
-
+    log(`Connecting to session sync: ${sessionId}`);
     const channel = supabase.channel(`scanner-session:${sessionId}`);
     
     channel
@@ -111,10 +113,12 @@ export default function RemoteScanner() {
 
   const startScanner = async () => {
     if (!window.isSecureContext && window.location.hostname !== "localhost") {
+      log("Error: Insecure Context (No HTTPS)");
       toast.error("Camera requires HTTPS connection.");
       return;
     }
 
+    log("Initializing Scanner Module...");
     try {
       const scanner = new Html5Qrcode("mobile-scanner-region");
       scannerRef.current = scanner;
@@ -123,19 +127,29 @@ export default function RemoteScanner() {
       const config = { fps: 25, qrbox: { width: 280, height: 180 } };
       
       if (cameraId) {
+        log(`Starting with specific lens: ${cameraId}`);
         await scanner.start({ deviceId: { exact: cameraId } }, config, handleScan, () => {});
       } else {
-        await scanner.start({ facingMode: facingMode }, config, handleScan, () => {});
+        log(`Starting with facingMode: ${facingMode}`);
+        // Aggressive mode for mobile stability
+        const mode = facingMode === "environment" ? { facingMode: { exact: "environment" } } : { facingMode: "user" };
+        try {
+          await scanner.start(mode, config, handleScan, () => {});
+        } catch (e) {
+          log("Exact mode failed, falling back to loose mode...");
+          await scanner.start({ facingMode }, config, handleScan, () => {});
+        }
       }
       
       setIsScanning(true);
+      log("Active Scanning Initiated.");
       
-      // Retry enumeration after starting (some browsers only allow it after permission)
       if (cameras.length === 0) {
         setTimeout(refreshCameras, 500);
       }
-    } catch (err) {
-      toast.error("Camera access failed. Check permissions.");
+    } catch (err: any) {
+      log(`Scanner Initialization Failed: ${err.message || err}`);
+      toast.error("Lens Initialization Error. See Diagnostics.");
     }
   };
 
@@ -466,6 +480,44 @@ export default function RemoteScanner() {
                      ))
                   )}
                </div>
+            </div>
+
+            {/* Diagnostic Terminal */}
+            <div className="pt-12 border-t border-white/5 space-y-6">
+                <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-2 text-primary opacity-50">
+                      <Stethoscope size={14} />
+                      <h4 className="text-[9px] font-black uppercase tracking-[0.3em]">Scanner Diagnostics</h4>
+                   </div>
+                   <Button 
+                    onClick={triggerPermissionRequest}
+                    variant="link" 
+                    className="text-[9px] font-black uppercase tracking-widest text-primary hover:text-white transition-colors"
+                   >
+                     Force Permission Prompt
+                   </Button>
+                </div>
+                
+                <div className="bg-black rounded-2xl p-6 border border-white/5 font-mono text-[10px] space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar">
+                   {debugLog ? debugLog.split('\n').map((line, i) => (
+                     <p key={i} className="text-primary/60 leading-relaxed">
+                        <span className="text-white/20 select-none mr-3">[{i+1}]</span>
+                        {line}
+                     </p>
+                   )) : (
+                     <p className="text-white/10 italic">Awaiting scanner activity...</p>
+                   )}
+                </div>
+
+                <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
+                   <div className="flex items-center gap-2 text-amber-500">
+                      <AlertCircle size={14} />
+                      <p className="text-[9px] font-black uppercase tracking-widest">Still not prompting?</p>
+                   </div>
+                   <p className="text-[10px] text-muted-foreground leading-relaxed">
+                     If the browser still won't ask for permission, click the **Lock Icon 🔒** in your browser's address bar and ensure "Camera" is set to "Allow".
+                   </p>
+                </div>
             </div>
           </div>
         )}
