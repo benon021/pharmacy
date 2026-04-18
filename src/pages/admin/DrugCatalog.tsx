@@ -560,15 +560,47 @@ export default function DrugCatalog() {
                     <span>Barcode / QR</span>
                     <div className="flex gap-2">
                        <button onClick={() => setScannerModalOpen(true)} className="text-primary hover:underline lowercase text-[9px] tracking-normal flex items-center gap-1">
-                          <QrCode size={10} /> Link Phone
+                          <QrCode size={10} /> Scan with Phone
                        </button>
-                       <button onClick={generateBarcode} className="text-muted-foreground hover:underline lowercase text-[9px] tracking-normal">Generate Random</button>
+                       <button onClick={generateBarcode} className="text-muted-foreground hover:underline lowercase text-[9px] tracking-normal">Auto Generate</button>
                     </div>
                   </Label>
                   <div className="relative">
                     <Barcode className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input className="h-14 pl-12 rounded-2xl bg-white/5 border-white/10 text-white font-mono" value={form.barcode} onChange={e => setForm({ ...form, barcode: e.target.value })} placeholder="Scan or type..." />
+                    <Input className="h-14 pl-12 rounded-2xl bg-white/5 border-white/10 text-white font-mono tracking-widest text-lg" value={form.barcode} onChange={e => setForm({ ...form, barcode: e.target.value })} placeholder="Scan or type..." />
                   </div>
+                  {/* Live Barcode Preview */}
+                  {form.barcode && (
+                    <div className="mt-2 p-4 rounded-2xl bg-white/[0.03] border border-primary/20 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[8px] font-black uppercase tracking-[0.3em] text-primary/60">Live Barcode Preview</span>
+                        <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Stored
+                        </span>
+                      </div>
+                      {/* Barcode visual strip */}
+                      <div className="bg-white rounded-xl p-3 flex flex-col items-center gap-2">
+                        <div className="flex items-end gap-[1px] h-12 w-full max-w-[280px]">
+                          {form.barcode.split('').map((char: string, i: number) => {
+                            const w = ((char.charCodeAt(0) % 3) + 1);
+                            return (
+                              <div 
+                                key={i} 
+                                className="bg-black flex-shrink-0 rounded-sm"
+                                style={{ 
+                                  width: `${w * 2}px`, 
+                                  height: `${28 + (char.charCodeAt(0) % 20)}px`,
+                                  marginRight: i % 4 === 3 ? '3px' : '0px'
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                        <p className="text-black font-mono text-sm font-bold tracking-[0.25em] text-center">{form.barcode}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
