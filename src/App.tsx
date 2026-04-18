@@ -42,6 +42,7 @@ const DistributionNodes = lazy(() => import("./pages/admin/DistributionNodes"));
 const RemoteScanner = lazy(() => import("./pages/shared/RemoteScanner"));
 const MessagingHub = lazy(() => import("./pages/shared/MessagingHub"));
 const ProfileHub = lazy(() => import("./pages/shared/ProfileHub"));
+const DrugResearch = lazy(() => import("./pages/shared/DrugResearch"));
 
 
 const queryClient = new QueryClient();
@@ -63,6 +64,7 @@ const App = () => (
                   <Route path="/debug-setup" element={<DebugSetup />} />
                   <Route path="/remote-scanner" element={<RemoteScanner />} />
                   <Route path="/remote-scanner/:sessionId" element={<RemoteScanner />} />
+                  <Route path="/research" element={<ProtectedRoute requiredRole={["super_admin", "admin", "seller"]}><AppLayout><DrugResearch /></AppLayout></ProtectedRoute>} />
 
                   {/* Admin routes */}
                   <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AppLayout><AdminDashboard /></AppLayout></ProtectedRoute>} />
