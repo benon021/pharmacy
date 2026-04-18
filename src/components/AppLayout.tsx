@@ -238,7 +238,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           !isCollapsed ? "md:w-[280px]" : "md:w-[90px]"
         )}
       >
-        <div className={cn("flex items-center gap-3 py-10 px-6", isCollapsed && "md:px-0 md:justify-center transition-all")}>
+        <div className={cn("flex items-center gap-3 py-6 px-4", isCollapsed && "md:px-0 md:justify-center transition-all")}>
           <Link to="/" className="flex items-center gap-3 group">
             <div className="h-10 w-10 flex flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-orange-600 text-black shadow-lg shadow-primary/20 hover:scale-110 transition-transform duration-500">
               <Zap className="h-6 w-6 font-black" />
@@ -380,7 +380,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
         )}
-        <header className="h-24 flex-shrink-0 flex items-center justify-between px-8 bg-card/40 backdrop-blur-3xl border-b border-white/5">
+        <header className="h-16 md:h-20 flex-shrink-0 flex items-center justify-between px-4 md:px-8 bg-card/40 backdrop-blur-3xl border-b border-white/5">
           <div className="flex items-center gap-6">
             <button className="md:hidden p-3 rounded-xl bg-white/5" onClick={() => setSidebarOpen(true)}>
               <Menu className="h-5 w-5 text-white" />
@@ -462,7 +462,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar scroll-smooth bg-gradient-to-b from-[#0a0a0c] to-background">
-          <div className="max-w-[1600px] mx-auto p-8 md:p-12 lg:p-16">
+          <div className="max-w-[1600px] mx-auto p-4 md:p-8 lg:p-12">
             {children}
           </div>
         </div>

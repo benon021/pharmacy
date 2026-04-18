@@ -59,6 +59,7 @@ const App = () => (
                   <Route path="/" element={<Index />} />
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/debug-setup" element={<DebugSetup />} />
+                  <Route path="/remote-scanner" element={<RemoteScanner />} />
                   <Route path="/remote-scanner/:sessionId" element={<RemoteScanner />} />
 
                   {/* Admin routes */}

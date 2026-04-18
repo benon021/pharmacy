@@ -325,7 +325,7 @@ export default function DrugCatalog() {
           <h1 className="text-4xl xl:text-5xl font-black tracking-tight text-foreground dark:text-white italic tracking-tighter flex items-baseline gap-3">
             Inventory Ledger <span className="text-primary not-italic tracking-normal text-sm font-black bg-primary/20 px-3 py-1 rounded-full">{drugs.length} Items</span>
           </h1>
-          <p className="text-muted-foreground text-lg">Centralized pharmaceutical tracking with real-time forensic auditing</p>
+          <p className="text-muted-foreground text-base md:text-lg">Centralized pharmaceutical tracking with real-time forensic auditing</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <input type="file" id="excel-import" className="hidden" accept=".xlsx, .xls, .csv" onChange={handleImport} />
@@ -371,7 +371,9 @@ export default function DrugCatalog() {
         </div>
       </div>
 
-      <div className="premium-card !p-0 overflow-hidden border-border dark:border-white/5! shadow-2xl backdrop-blur-3xl">
+      <div className="overflow-x-auto rounded-[1rem] border border-border dark:border-white/5">
+        <div className="min-w-[1000px]">
+          <div className="premium-card !p-0 overflow-hidden shadow-2xl backdrop-blur-3xl">
         <Table>
           <TableHeader>
             <TableRow className="bg-white/[0.03] hover:bg-white/[0.03] border-border dark:border-white/5">
@@ -501,8 +503,8 @@ export default function DrugCatalog() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-4xl bg-[#09090b] border-white/5 rounded-[3rem] p-0 overflow-hidden shadow-[0_0_100px_rgba(16,185,129,0.1)] backdrop-blur-3xl">
-          <DialogHeader className="p-10 bg-white/[0.02] border-b border-white/5">
+        <DialogContent className="max-w-4xl w-[95vw] md:w-full bg-[#09090b] border-white/5 rounded-[1.5rem] md:rounded-[3rem] p-0 overflow-hidden shadow-[0_0_100px_rgba(16,185,129,0.1)] backdrop-blur-3xl">
+          <DialogHeader className="p-6 md:p-10 bg-white/[0.02] border-b border-white/5">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <DialogTitle className="text-3xl font-black italic tracking-tighter text-white uppercase">{editingDrug ? "Update Forensic Entry" : "Register New Product"}</DialogTitle>
@@ -517,7 +519,7 @@ export default function DrugCatalog() {
             </div>
           </DialogHeader>
 
-          <div className="p-10 space-y-10 max-h-[75vh] overflow-y-auto custom-scrollbar">
+          <div className="p-6 md:p-10 space-y-6 md:space-y-10 max-h-[75vh] overflow-y-auto custom-scrollbar">
             {/* Identification Layer */}
             <div className="space-y-6">
               <div className="flex items-center gap-2 mb-4">

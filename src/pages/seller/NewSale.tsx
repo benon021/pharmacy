@@ -385,7 +385,7 @@ export default function NewSale() {
           <h1 className="text-4xl font-black tracking-tighter text-white italic uppercase">
             Checkout
           </h1>
-          <p className="text-muted-foreground">Process sales, track inventory, and generate receipts</p>
+          <p className="text-muted-foreground text-sm md:text-base">Process sales, track inventory, and generate receipts</p>
         </div>
         <div className="flex h-12 items-center gap-4 px-4 rounded-2xl bg-card dark:bg-white/5 border border-border dark:border-white/10">
            <Button 
@@ -510,8 +510,8 @@ export default function NewSale() {
         </div>
 
         <div className="lg:col-span-5">
-          <div className="glass-panel rounded-[2.5rem] overflow-hidden sticky top-8 border-border dark:border-white/5 shadow-2xl">
-            <div className="p-8 bg-white/[0.04] border-b border-border dark:border-white/5">
+          <div className="glass-panel rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden sticky top-8 border-border dark:border-white/5 shadow-2xl">
+            <div className="p-4 md:p-8 bg-white/[0.04] border-b border-border dark:border-white/5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 flex items-center justify-center rounded-2xl bg-primary/20 text-primary border border-primary/20">
@@ -528,7 +528,7 @@ export default function NewSale() {
               </div>
             </div>
 
-            <div className="p-8 space-y-6">
+            <div className="p-4 md:p-8 space-y-6">
               {cart.length === 0 ? (
                 <div className="py-16 text-center space-y-4 opacity-30">
                   <div className="h-20 w-20 bg-card dark:bg-white/5 rounded-[2rem] flex items-center justify-center mx-auto border border-border dark:border-white/10">

@@ -64,7 +64,8 @@ export default function ScannerHubModal({ open, onClose, onScan, title = "Scanne
     };
   }, [open, mode, sessionId, onScan, onClose]);
 
-  const scannerUrl = `${window.location.origin}/remote-scanner/${sessionId}`;
+  const productionUrl = "https://pharmacy-gamma-green.vercel.app";
+  const scannerUrl = `${window.location.hostname === "localhost" ? productionUrl : window.location.origin}/remote-scanner/${sessionId}`;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>

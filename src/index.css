@@ -87,7 +87,7 @@
     --input: 240 5% 12%;
     --ring: 27 100% 50%;
 
-    --radius: 1rem;
+    --radius: 0.75rem;
 
     --sidebar-background: 240 10% 4%;
     --sidebar-foreground: 240 5% 85%;
@@ -128,7 +128,7 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-heading;
+    @apply font-heading tracking-tight;
   }
 }
 

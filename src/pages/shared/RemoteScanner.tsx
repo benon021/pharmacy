@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface ScannedProduct {
   name: string;
@@ -30,6 +31,8 @@ export default function RemoteScanner() {
   const [isPaired, setIsPaired] = useState(false);
   const [lastScanned, setLastScanned] = useState<any>(null);
   const [cartPreview, setCartPreview] = useState<ScannedProduct[]>([]);
+  const [manualSessionId, setManualSessionId] = useState("");
+  const [status, setStatus] = useState<"connecting" | "online" | "offline">("connecting");
   const scannerRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => {
@@ -56,6 +59,9 @@ export default function RemoteScanner() {
             payload: { device: navigator.userAgent }
           });
           setIsPaired(true);
+          setStatus("online");
+        } else if (status === "CLOSED") {
+          setStatus("offline");
         }
       });
 
@@ -103,6 +109,12 @@ export default function RemoteScanner() {
     if (window.navigator.vibrate) window.navigator.vibrate([50, 50, 50]);
   };
 
+  const handleManualJoin = () => {
+    if (manualSessionId.length > 5) {
+      window.location.href = `/remote-scanner/${manualSessionId}`;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#09090b] text-white flex flex-col font-sans">
       {/* Header */}
@@ -118,13 +130,37 @@ export default function RemoteScanner() {
         </div>
         <div className={cn(
           "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all",
-          isPaired ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : "bg-primary/10 text-primary animate-pulse"
+          status === "online" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" : 
+          status === "connecting" ? "bg-primary/10 text-primary animate-pulse border border-primary/20" :
+          "bg-red-500/10 text-red-500 border border-red-500/20"
         )}>
-          {isPaired ? "Paired" : "Pairing..."}
+          {status.toUpperCase()}
         </div>
       </div>
 
       <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+        {!sessionId && (
+           <div className="bg-white/5 border border-white/10 rounded-[2rem] p-8 space-y-6 animate-fade-in mt-10">
+              <div className="space-y-2">
+                 <h2 className="text-xl font-black italic tracking-tighter uppercase">Join Manual Session</h2>
+                 <p className="text-xs text-muted-foreground">Enter the ID shown on your desktop to begin scanning.</p>
+              </div>
+              <div className="space-y-4">
+                 <input 
+                  className="w-full h-14 bg-black/50 border border-white/10 rounded-2xl px-6 font-mono text-center tracking-widest text-white outline-none focus:border-primary/50 transition-colors"
+                  placeholder="Paste Session ID..."
+                  value={manualSessionId}
+                  onChange={e => setManualSessionId(e.target.value)}
+                 />
+                 <Button 
+                  onClick={handleManualJoin}
+                  className="w-full h-14 rounded-2xl bg-primary text-black font-black uppercase tracking-widest text-xs"
+                 >
+                    Join Bridge
+                 </Button>
+              </div>
+           </div>
+        )}
         {/* Scanner Viewport */}
         <div className="relative aspect-[4/3] rounded-[2rem] bg-card border border-white/5 overflow-hidden shadow-2xl">
           <div id="mobile-scanner-region" className="w-full h-full" />

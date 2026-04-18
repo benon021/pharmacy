@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { localDb, User, AppRole } from "@/lib/db";
-import { db, seedDatabase } from "@/lib/dexie";
+import { supabase } from "@/lib/supabase";
 
 interface AuthContextType {
   user: User | null;
@@ -23,17 +23,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        // 1. Ensure Super Admin exists locally
-        await seedDatabase();
-
-        // 2. Check for existing local session
-        const sessionUser = await localDb.auth.getSession();
-        if (sessionUser) {
-          console.log("[Auth] Restoring local session for:", sessionUser.email);
-          applyUser(sessionUser);
+        // 1. Check for existing Supabase session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          console.log("[Auth] Restoring Supabase session for:", session.user.email);
+          applyUserFromSession(session.user);
         } else {
           applyUser(null);
         }
+
+        // 2. Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+          if (session) {
+            applyUserFromSession(session.user);
+          } else {
+            applyUser(null);
+          }
+        });
+
+        return () => subscription.unsubscribe();
       } catch (err) {
         console.error("[Auth] Initialization error:", err);
         applyUser(null);
@@ -43,37 +52,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth();
   }, []);
 
+  const applyUserFromSession = (supabaseUser: any) => {
+    const u: User = {
+      id: supabaseUser.id,
+      email: supabaseUser.email || "",
+      full_name: supabaseUser.user_metadata.full_name || "User",
+      role: supabaseUser.user_metadata.role as AppRole,
+      pharmacy_id: supabaseUser.user_metadata.pharmacy_id || null,
+      is_active: true,
+      created_at: supabaseUser.created_at
+    };
+    applyUser(u);
+  };
+
   const applyUser = (u: User | null) => {
     setUser(u);
     setRole(u?.role ?? null);
     setPharmacyId(u?.pharmacy_id ?? null);
     setLoading(false);
     initialHandled.current = true;
+    
+    // Maintain lumiaxy_session for legacy components that read from localStorage
+    if (u) {
+      localStorage.setItem("lumiaxy_session", JSON.stringify(u));
+    } else {
+      localStorage.removeItem("lumiaxy_session");
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    console.log("[Auth] Attempting local sign-in for:", email);
+    console.log("[Auth] Attempting Supabase sign-in for:", email);
     
     try {
-      // Find user in local Dexie database
-      const foundUser = await db.users.where("email").equalsIgnoreCase(email).first();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
       
-      if (!foundUser) {
-        return { error: new Error("Invalid credentials") };
+      if (error) {
+        return { error };
       }
 
-      // Basic password check (for local DB, we can keep it simple first)
-      if (foundUser.password !== password) {
-        return { error: new Error("Invalid credentials") };
+      if (data.user) {
+        applyUserFromSession(data.user);
       }
-
-      if (!foundUser.is_active) {
-        return { error: new Error("Account is suspended") };
-      }
-
-      // Store in localStorage for persistence
-      localStorage.setItem("lumiaxy_session", JSON.stringify(foundUser));
-      applyUser(foundUser as User);
       
       return { error: null };
     } catch (err: any) {
@@ -83,10 +105,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await localDb.auth.signOut();
-    setUser(null);
-    setRole(null);
-    setPharmacyId(null);
+    await supabase.auth.signOut();
+    applyUser(null);
   };
 
   return (
