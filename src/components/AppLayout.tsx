@@ -226,7 +226,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-background transition-colors duration-500">
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-md md:hidden animate-fade-in"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-md md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -244,7 +244,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Zap className="h-6 w-6 font-black" />
             </div>
             {!isCollapsed && (
-              <div className="flex flex-col animate-in slide-in-from-left-2 duration-700">
+              <div className="flex flex-col">
                 <span className="font-black text-xl tracking-tighter text-white italic uppercase leading-none">
                   Lumiaxy
                 </span>
@@ -261,7 +261,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* Global Support Broadcast (Super Admin only label) */}
         {!isCollapsed && role === 'super_admin' && (
-          <div className="mx-6 mb-4 p-4 rounded-2xl bg-primary/5 border border-primary/10 animate-pulse">
+          <div className="mx-6 mb-4 p-4 rounded-2xl bg-primary/5 border border-primary/10">
             <div className="flex items-center gap-2 text-[9px] font-black text-primary uppercase tracking-widest mb-1 text-white!">
               <Activity size={10} /> System Status: Online
             </div>
@@ -363,9 +363,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <main className="flex-1 flex flex-col min-w-0 h-[100dvh] overflow-hidden bg-background">
         {isImpersonating && (
-          <div className="bg-primary/20 border-b border-primary/20 py-2.5 px-6 flex items-center justify-between animate-in slide-in-from-top duration-700 backdrop-blur-md">
+          <div className="bg-primary/20 border-b border-primary/20 py-2.5 px-6 flex items-center justify-between backdrop-blur-md">
             <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-white!">
-              <ShieldCheck className="h-4 w-4 text-primary animate-pulse" />
+              <ShieldCheck className="h-4 w-4 text-primary" />
               Viewing Pharmacy Details: <span className="text-primary italic ml-1 underline">{activePharmacyName}</span>
             </div>
             <Button 
@@ -402,7 +402,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <button className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-white/5 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors relative hover:bg-primary/5">
                     <Bell className="h-5 w-5" />
                     {unreadCount > 0 && (
-                        <span className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                        <span className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full bg-primary" />
                     )}
                     </button>
                 </PopoverTrigger>

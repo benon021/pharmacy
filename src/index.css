@@ -238,33 +238,6 @@
   }
 }
 
-@keyframes print-out {
-  0% { transform: translateY(-100%); opacity: 0; }
-  100% { transform: translateY(0); opacity: 1; }
-}
-
-@keyframes cart-pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-}
-
-@keyframes sync-progress {
-  0% { width: 0%; }
-  100% { width: 100%; }
-}
-
-.animate-print {
-  animation: print-out 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.animate-cart-pulse {
-  animation: cart-pulse 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.animate-sync-bar {
-  animation: sync-progress 1s linear forwards;
-}
 
 .hover-glow-intel {
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);

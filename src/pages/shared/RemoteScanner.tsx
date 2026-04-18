@@ -23,7 +23,6 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { motion, AnimatePresence } from "framer-motion";
 
 interface ScannedProduct {
   name: string;
@@ -141,13 +140,11 @@ export default function RemoteScanner() {
       {/* Header */}
       <header className="p-6 bg-black/40 backdrop-blur-3xl border-b border-white/5 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
-          <motion.div 
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
+          <div 
             className="h-10 w-10 rounded-xl bg-gradient-to-tr from-primary to-orange-600 flex items-center justify-center text-black shadow-lg shadow-primary/20"
           >
             <Smartphone size={20} />
-          </motion.div>
+          </div>
           <div>
             <h1 className="text-sm font-black uppercase tracking-tighter italic leading-none">Lumiaxy <span className="text-primary not-italic">Bridge</span></h1>
             <p className="text-[9px] font-black uppercase tracking-widest text-primary/60 mt-0.5">Session: {sessionId?.slice(0, 8) || "Inactive"}</p>
@@ -163,7 +160,7 @@ export default function RemoteScanner() {
            <div className={cn(
             "px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all",
             status === "online" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]" : 
-            status === "connecting" ? "bg-primary/10 text-primary animate-pulse border-primary/20" :
+            status === "connecting" ? "bg-primary/10 text-primary border-primary/20" :
             "bg-red-500/20 text-red-500 border-red-500/30"
           )}>
             {status}
@@ -172,36 +169,29 @@ export default function RemoteScanner() {
       </header>
 
       <main className="flex-1 p-6 space-y-6 overflow-y-auto custom-scrollbar pb-32">
-        <AnimatePresence>
-          {settingsOpen && (
-            <motion.div 
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="bg-white/[0.03] border border-white/10 rounded-3xl p-6 overflow-hidden grid grid-cols-2 gap-4"
-            >
-               <button 
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className={cn("h-14 rounded-2xl flex flex-col items-center justify-center gap-1.5 border transition-all", soundEnabled ? "bg-primary/10 border-primary/40 text-primary" : "bg-white/5 border-white/5 text-muted-foreground")}
-               >
-                  {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-                  <span className="text-[8px] font-black uppercase tracking-widest">Sound {soundEnabled ? "ON" : "OFF"}</span>
-               </button>
-               <button 
-                onClick={() => setVibrateEnabled(!vibrateEnabled)}
-                className={cn("h-14 rounded-2xl flex flex-col items-center justify-center gap-1.5 border transition-all", vibrateEnabled ? "bg-primary/10 border-primary/40 text-primary" : "bg-white/5 border-white/5 text-muted-foreground")}
-               >
-                  {vibrateEnabled ? <Vibrate size={16} /> : <VibrateOff size={16} />}
-                  <span className="text-[8px] font-black uppercase tracking-widest">Haptics {vibrateEnabled ? "ON" : "OFF"}</span>
-               </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {settingsOpen && (
+          <div 
+            className="bg-white/[0.03] border border-white/10 rounded-3xl p-6 overflow-hidden grid grid-cols-2 gap-4"
+          >
+             <button 
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className={cn("h-14 rounded-2xl flex flex-col items-center justify-center gap-1.5 border transition-all", soundEnabled ? "bg-primary/10 border-primary/40 text-primary" : "bg-white/5 border-white/5 text-muted-foreground")}
+             >
+                {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                <span className="text-[8px] font-black uppercase tracking-widest">Sound {soundEnabled ? "ON" : "OFF"}</span>
+             </button>
+             <button 
+              onClick={() => setVibrateEnabled(!vibrateEnabled)}
+              className={cn("h-14 rounded-2xl flex flex-col items-center justify-center gap-1.5 border transition-all", vibrateEnabled ? "bg-primary/10 border-primary/40 text-primary" : "bg-white/5 border-white/5 text-muted-foreground")}
+             >
+                {vibrateEnabled ? <Vibrate size={16} /> : <VibrateOff size={16} />}
+                <span className="text-[8px] font-black uppercase tracking-widest">Haptics {vibrateEnabled ? "ON" : "OFF"}</span>
+             </button>
+          </div>
+        )}
 
         {!sessionId && (
-           <motion.div 
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
+           <div 
             className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 space-y-6 text-center"
            >
               <div className="h-20 w-20 rounded-[2rem] bg-card border border-white/5 flex items-center justify-center text-primary mx-auto shadow-2xl">
@@ -225,27 +215,24 @@ export default function RemoteScanner() {
                     Establish Handshake
                  </Button>
               </div>
-           </motion.div>
+           </div>
         )}
 
         {/* Scanner Viewport */}
         {sessionId && (
           <div className="space-y-6">
-            <motion.div 
-              layout
+            <div 
               className="relative aspect-video md:aspect-square rounded-[2.5rem] bg-black border border-white/10 overflow-hidden shadow-2xl spatial-shadow"
             >
               <div id="mobile-scanner-region" className="w-full h-full grayscale-[0.5] contrast-[1.2]" />
               
               {!isScanning && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-md space-y-4">
-                   <motion.div 
-                    animate={{ scale: [1, 1.1, 1] }} 
-                    transition={{ repeat: Infinity, duration: 2 }}
+                   <div 
                     className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center text-primary border border-primary/20"
                    >
                       <Zap size={40} className="fill-current" />
-                   </motion.div>
+                   </div>
                    <Button 
                     onClick={startScanner}
                     className="h-14 px-10 rounded-2xl bg-white text-black font-black uppercase tracking-[0.2em] text-[10px] hover:bg-primary transition-colors"
@@ -257,14 +244,6 @@ export default function RemoteScanner() {
 
               {isScanning && (
                 <>
-                  {/* Scanning Animation */}
-                  <motion.div 
-                    initial={{ top: "10%" }}
-                    animate={{ top: "90%" }}
-                    transition={{ repeat: Infinity, repeatType: "reverse", duration: 1.5, ease: "easeInOut" }}
-                    className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent z-10 shadow-[0_0_15px_rgba(var(--primary-rgb),0.8)]"
-                  />
-                  
                   {/* Scanner Overlay UI */}
                   <div className="absolute inset-0 pointer-events-none p-8 flex flex-col justify-between">
                      <div className="flex justify-between">
@@ -283,29 +262,24 @@ export default function RemoteScanner() {
                   </div>
                 </>
               )}
-            </motion.div>
+            </div>
 
             {/* Scan Feedback Overlay */}
-            <AnimatePresence>
-              {lastScanned && (
-                 <motion.div 
-                  initial={{ y: 50, opacity: 0, scale: 0.9 }}
-                  animate={{ y: 0, opacity: 1, scale: 1 }}
-                  exit={{ y: -20, opacity: 0, scale: 0.9 }}
-                  className="bg-emerald-500 border border-emerald-400 rounded-3xl p-6 shadow-2xl shadow-emerald-500/20"
-                 >
-                    <div className="flex items-center gap-5">
-                       <div className="h-12 w-12 rounded-2xl bg-white/20 flex items-center justify-center text-white">
-                          <CheckCircle2 size={28} />
-                       </div>
-                       <div>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-emerald-100/60 leading-none mb-1.5">Successfully Synced</p>
-                          <h3 className="text-xl font-black italic tracking-tighter uppercase leading-tight">{lastScanned.name}</h3>
-                       </div>
-                    </div>
-                 </motion.div>
-              )}
-            </AnimatePresence>
+            {lastScanned && (
+               <div 
+                className="bg-emerald-500 border border-emerald-400 rounded-3xl p-6 shadow-2xl shadow-emerald-500/20"
+               >
+                  <div className="flex items-center gap-5">
+                     <div className="h-12 w-12 rounded-2xl bg-white/20 flex items-center justify-center text-white">
+                        <CheckCircle2 size={28} />
+                     </div>
+                     <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-100/60 leading-none mb-1.5">Successfully Synced</p>
+                        <h3 className="text-xl font-black italic tracking-tighter uppercase leading-tight">{lastScanned.name}</h3>
+                     </div>
+                  </div>
+               </div>
+            )}
 
             {/* Live Cart Preview */}
             <div className="space-y-4">
@@ -324,11 +298,8 @@ export default function RemoteScanner() {
                      </div>
                   ) : (
                      cartPreview.map((item, i) => (
-                        <motion.div 
+                        <div 
                           key={i} 
-                          initial={{ x: -20, opacity: 0 }}
-                          animate={{ x: 0, opacity: 1 }}
-                          transition={{ delay: i * 0.05 }}
                           className="bg-white/[0.03] border border-white/5 rounded-2xl p-4 flex items-center justify-between group"
                         >
                            <div className="flex items-center gap-4">
@@ -343,7 +314,7 @@ export default function RemoteScanner() {
                            <div className="text-right">
                               <p className="font-black text-sm italic leading-none">KES {item.price.toLocaleString()}</p>
                            </div>
-                        </motion.div>
+                        </div>
                      ))
                   )}
                </div>
